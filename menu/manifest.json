@@ -65,7 +65,10 @@
           "enName": "Mint Mix",
           "descriptionAr": "نكهات نعناع منعشة.",
           "descriptionEn": "Refreshing mint blends.",
-          "images": []
+          "images": [
+            "Mazaya-nana3-1.jpg"
+          ],
+          "price": "20000"
         }
       ]
     },
