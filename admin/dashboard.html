@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Master Cake Admin — Dashboard</title>
+    <link rel="icon" href="../Logo.png">
+    <style>
+      body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; background:#faf7f6; color:#222}
+      header{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:#e01f2d; color:#fff}
+      main{padding:16px; display:grid; gap:16px}
+      .row{display:grid; grid-template-columns: 3fr 2fr; gap:16px}
+      @media(max-width:900px){ .row{ grid-template-columns: 1fr; } }
+      .card{background:#fff; border:1px solid #eee; border-radius:12px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.05)}
+      label{display:block; font-weight:700; margin:8px 0 6px}
+      input, textarea{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd}
+      select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff}
+      button{padding:10px 14px; border-radius:10px; border:0; background:#e01f2d; color:#fff; font-weight:800; cursor:pointer}
+      table{width:100%; border-collapse:collapse}
+      th, td{border-bottom:1px solid #eee; padding:8px 6px; text-align:start}
+      .muted{color:#666}
+      .actions{display:flex; gap:8px}
+      .pill{display:inline-block; padding:4px 8px; border-radius:999px; background:#f7d9bf; color:#b31422; font-weight:800; font-size:12px}
+      .error{color:#b31422}
+      .ok{color:#0a7a3d}
+    </style>
+  </head>
+  <body>
+    <header>
+      <b>Master Cake — Admin</b>
+      <div class="actions">
+        <button id="btnLogout" style="background:#111">Logout</button>
+        <a href="/" target="_blank" style="color:#fff; text-decoration:none"><button style="background:#b31422">View Site</button></a>
+      </div>
+    </header>
+    <main>
+      <div class="row">
+        <section class="card">
+          <h3>Menu Items</h3>
+          <div class="muted">Select a section to view and edit items. Upload images first, then attach filenames to items.</div>
+          <label>Section</label>
+          <select id="sectionSelect"></select>
+          <div id="itemsTable"></div>
+        </section>
+        <aside class="card">
+          <h3>Upload Images</h3>
+          <label>Target Section</label>
+          <select id="uploadSection"></select>
+          <label>Choose images</label>
+          <input id="fileInput" type="file" multiple accept="image/*" />
+          <button id="btnUpload">Upload</button>
+          <div id="uploadMsg" class="muted"></div>
+        </aside>
+      </div>
+
+      <section class="card">
+        <h3>Add / Edit Item</h3>
+        <div class="row" style="grid-template-columns: 1fr 1fr">
+          <div>
+            <label>Section</label>
+            <select id="formSection"></select>
+            <label>Item ID</label>
+            <input id="formId" placeholder="e.g. iced-spanish-latte" />
+            <label>Arabic Name</label>
+            <input id="formArName" />
+            <label>English Name</label>
+            <input id="formEnName" />
+          </div>
+          <div>
+            <label>Arabic Description</label>
+            <textarea id="formDescAr" rows="4"></textarea>
+            <label>English Description</label>
+            <textarea id="formDescEn" rows="4"></textarea>
+          </div>
+        </div>
+        <label>Images (comma-separated filenames)</label>
+        <input id="formImages" placeholder="e.g. iced-spanish-latte-1.jpg, iced-spanish-latte-2.jpg" />
+        <div class="actions" style="margin-top:10px">
+          <button id="btnSave">Save Item</button>
+          <div id="saveMsg" class="muted"></div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const SECTIONS = ['cold_drinks','hot_drinks','sweets','argillies','ice_cream'];
+
+      async function api(path, opts){
+        const res = await fetch(path, opts);
+        if(!res.ok){ throw new Error((await res.text())||'Request failed'); }
+        return res.json();
+      }
+
+      async function init(){
+        // Check auth
+        const ok = await fetch('/api/admin/check');
+        if(!ok.ok){ location.href='/admin/'; return; }
+
+        // Fill selects
+        for(const id of ['sectionSelect','uploadSection','formSection']){
+          const s = document.getElementById(id);
+          SECTIONS.forEach(sec=>{ const o=document.createElement('option'); o.value=sec; o.textContent=sec; s.appendChild(o); });
+        }
+
+        // Load current manifest
+        const manifest = await api('/api/admin/manifest');
+        renderItems(manifest, document.getElementById('sectionSelect').value);
+
+        document.getElementById('sectionSelect').addEventListener('change', ()=>{
+          renderItems(manifest, document.getElementById('sectionSelect').value);
+        });
+
+        document.getElementById('btnUpload').addEventListener('click', async ()=>{
+          const files = document.getElementById('fileInput').files;
+          const section = document.getElementById('uploadSection').value;
+          if(!files.length) return;
+          const fd = new FormData();
+          fd.append('section', section);
+          Array.from(files).forEach(f=> fd.append('files', f));
+          const res = await fetch('/api/admin/upload', { method:'POST', body: fd });
+          const txt = await res.text();
+          document.getElementById('uploadMsg').textContent = res.ok ? 'Uploaded: '+txt : 'Upload failed: '+txt;
+        });
+
+        document.getElementById('btnSave').addEventListener('click', async ()=>{
+          const section = document.getElementById('formSection').value;
+          const item = {
+            id: document.getElementById('formId').value.trim(),
+            arName: document.getElementById('formArName').value.trim(),
+            enName: document.getElementById('formEnName').value.trim(),
+            descriptionAr: document.getElementById('formDescAr').value.trim(),
+            descriptionEn: document.getElementById('formDescEn').value.trim(),
+            images: document.getElementById('formImages').value.split(',').map(s=>s.trim()).filter(Boolean)
+          };
+          try{
+            const result = await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ section, item }) });
+            document.getElementById('saveMsg').textContent = 'Saved ✔';
+          }catch(e){
+            document.getElementById('saveMsg').textContent = 'Error: '+e.message;
+          }
+        });
+
+        document.getElementById('btnLogout').addEventListener('click', async ()=>{
+          await fetch('/api/admin/logout', { method:'POST' });
+          location.href='/admin/';
+        });
+      }
+
+      function renderItems(manifest, section){
+        const container = document.getElementById('itemsTable');
+        const items = manifest.sections?.[section]?.items || [];
+        const rows = items.map(it=>`<tr><td>${it.id}</td><td>${it.arName||''}</td><td>${it.enName||''}</td><td class='muted'>${(it.images||[]).join(', ')}</td></tr>`).join('');
+        container.innerHTML = `<table><thead><tr><th>ID</th><th>AR</th><th>EN</th><th>Images</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }
+
+      init();
+    </script>
+  </body>
+  </html>

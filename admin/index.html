@@ -5,9 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Master Cake Admin</title>
     <link rel="icon" href="../Logo.png">
+    <style>
+      body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; display:grid; place-items:center; min-height:100vh; margin:0; background:linear-gradient(180deg,#f9e7e1,#fff);} 
+      .card{background:#fff; width:min(400px,92vw); padding:22px; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.1);}
+      h1{margin:0 0 12px; font-size:20px}
+      label{display:block; font-weight:700; margin:10px 0 6px}
+      input{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd;}
+      button{margin-top:14px; width:100%; padding:12px; border:0; border-radius:10px; background:#e01f2d; color:#fff; font-weight:800; cursor:pointer}
+      .msg{margin-top:10px; color:#b31422}
+      .small{margin-top:12px; color:#666; font-size:12px}
+    </style>
   </head>
   <body>
-    <div id="nc-root"></div>
-    <script src="https://unpkg.com/decap-cms@^3.8.3/dist/decap-cms.js"></script>
+    <div class="card">
+      <h1>Admin Login</h1>
+      <label>Username</label>
+      <input id="u" autocomplete="username" />
+      <label>Password</label>
+      <input id="p" type="password" autocomplete="current-password" />
+      <button id="loginBtn">Sign in</button>
+      <div class="msg" id="msg"></div>
+      <div class="small">Protected area for managing menu items and images.</div>
+    </div>
+
+    <script>
+      async function login(){
+        const username = document.getElementById('u').value.trim();
+        const password = document.getElementById('p').value;
+        const res = await fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) });
+        if(res.ok){ location.href = '/admin/dashboard.html'; return; }
+        const data = await res.json().catch(()=>({error:'Login failed'}));
+        document.getElementById('msg').textContent = data.error || 'Login failed';
+      }
+      document.getElementById('loginBtn').addEventListener('click', login);
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Enter') login(); });
+      // If already logged in, redirect
+      fetch('/api/admin/check').then(r=> r.ok ? location.href='/admin/dashboard.html' : null);
+    </script>
   </body>
-</html>
+  </html>
