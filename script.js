@@ -104,10 +104,10 @@ async function renderUI(lang) {
   window.history.replaceState({}, '', url.toString());
 
   const isAr = lang === 'ar';
-  const titleText = isAr ? 'بوظة مستر كيك | Master Cake — القائمة' : 'Master Cake — Premium Menu';
+  const titleText = isAr ? 'بوظة ماستر كيك | Master Cake — القائمة' : 'Master Cake — Premium Menu';
   document.title = titleText;
   const metaDesc = document.getElementById('metaDescription');
-  metaDesc?.setAttribute('content', isAr ? 'قائمة بوظة مستر كيك — مشروبات باردة وساخنة، حلويات، أركيلة، وبوظة.' : 'Master Cake menu — cold/hot drinks, sweets, argillies, and ice cream.');
+  metaDesc?.setAttribute('content', isAr ? 'قائمة بوظة ماستر كيك — مشروبات باردة وساخنة، حلويات، أركيلة، وبوظة.' : 'Master Cake menu — cold/hot drinks, sweets, argillies, and ice cream.');
   document.getElementById('canonicalLink')?.setAttribute('href', `${url.origin}${url.pathname}`);
   document.getElementById('ogTitle')?.setAttribute('content', titleText);
   document.getElementById('ogDescription')?.setAttribute('content', metaDesc?.content || '');
@@ -121,8 +121,8 @@ async function renderUI(lang) {
   document.getElementById('twImage')?.setAttribute('content', absImage);
 
   $('#brandName').textContent = t.name;
-  $('#footName').textContent = t.name;
-  $('#brandTag').textContent = t.tag;
+  const brandTagEl = $('#brandTag');
+  if (brandTagEl) brandTagEl.textContent = t.tag;
 
   // Render quick nav chips
   const quickNav = $('#quickNav');

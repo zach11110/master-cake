@@ -2,7 +2,7 @@
 // This mirrors the structure of manifest.json and exposes window.MENU_MANIFEST.
 window.MENU_MANIFEST = {
   brand: {
-    arName: 'بوظة مستر كيك',
+    arName: 'بوظة ماستر كيك',
     enName: 'Master Cake',
     tagAr: 'قائمة راقية بطابع حديث',
     tagEn: 'A modern, premium menu experience'
