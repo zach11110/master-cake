@@ -1,5 +1,4 @@
 import path from 'node:path';
-import fs from 'node:fs/promises';
 
 export const config = {
   api: {
@@ -28,8 +27,11 @@ export default async function handler(req, res) {
   const sectionMatch = /name="section"\r\n\r\n([^\r]+)\r\n/.exec(body.toString());
   const section = sectionMatch ? sectionMatch[1] : 'uploads';
 
-  const dir = path.join(process.cwd(), 'menu', section);
-  try { await fs.mkdir(dir, { recursive: true }); } catch {}
+  // Save files to GitHub repo under menu/<section>/
+  const repo = process.env.GITHUB_REPO; // owner/name
+  const branch = process.env.GITHUB_BRANCH || 'main';
+  const token = process.env.GITHUB_TOKEN;
+  if (!repo || !token) return res.status(500).send('Missing GITHUB_REPO or GITHUB_TOKEN');
 
   const saved = [];
   for (const part of parts) {
@@ -39,9 +41,18 @@ export default async function handler(req, res) {
     const fileStart = part.indexOf('\r\n\r\n');
     if (fileStart === -1) continue;
     const fileContent = part.substring(fileStart + 4, part.lastIndexOf('\r\n'));
-    const buf = Buffer.from(fileContent, 'binary');
-    const target = path.join(dir, filename);
-    await fs.writeFile(target, buf);
+    const contentBase64 = Buffer.from(fileContent, 'binary').toString('base64');
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/menu/${section}/${encodeURIComponent(filename)}`;
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
+      body: JSON.stringify({
+        message: `chore(admin): upload ${section}/${filename}`,
+        content: contentBase64,
+        branch
+      })
+    });
+    if (!putRes.ok) return res.status(500).send('GitHub upload failed');
     saved.push(filename);
   }
 
