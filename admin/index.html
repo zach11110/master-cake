@@ -22,35 +22,31 @@
         publish_mode: 'editorial_workflow',
         media_folder: 'menu/uploads',
         public_folder: '/menu/uploads',
-        collections: [
-          {
-            name: 'settings',
-            label: 'Menu Settings',
-            files: [
-              {
-                file: 'menu/manifest.json',
-                label: 'Master Menu',
-                name: 'master_menu',
-                format: 'json',
-                fields: [
-                  { label: 'Brand', name: 'brand', widget: 'object', fields: [
-                    { label: 'Arabic Name', name: 'arName', widget: 'string' },
-                    { label: 'English Name', name: 'enName', widget: 'string' },
-                    { label: 'Arabic Tagline', name: 'tagAr', widget: 'string' },
-                    { label: 'English Tagline', name: 'tagEn', widget: 'string' }
-                  ]},
-                  { label: 'Sections', name: 'sections', widget: 'object', fields: [
-                    section('cold_drinks', 'Cold Drinks', 'مشروبات باردة'),
-                    section('hot_drinks', 'Hot Drinks', 'مشروبات ساخنة'),
-                    section('sweets', 'Sweets', 'حلويات'),
-                    section('argillies', 'Argillies (Hookah)', 'أركيلة'),
-                    section('ice_cream', 'Ice Cream', 'بوظة / آيس كريم')
-                  ]}
-                ]
-              }
+        collections: [{
+          name: 'menu',
+          label: 'Master Menu',
+          files: [{
+            file: 'menu/manifest.json',
+            label: 'Menu Data',
+            name: 'menu_data',
+            format: 'json',
+            fields: [
+              { label: 'Brand', name: 'brand', widget: 'object', fields: [
+                { label: 'Arabic Name', name: 'arName', widget: 'string' },
+                { label: 'English Name', name: 'enName', widget: 'string' },
+                { label: 'Arabic Tagline', name: 'tagAr', widget: 'string' },
+                { label: 'English Tagline', name: 'tagEn', widget: 'string' }
+              ]},
+              { label: 'Sections', name: 'sections', widget: 'object', fields: [
+                section('cold_drinks', 'Cold Drinks', 'مشروبات باردة'),
+                section('hot_drinks', 'Hot Drinks', 'مشروبات ساخنة'),
+                section('sweets', 'Sweets', 'حلويات'),
+                section('argillies', 'Argillies (Hookah)', 'أركيلة'),
+                section('ice_cream', 'Ice Cream', 'بوظة / آيس كريم')
+              ]}
             ]
-          }
-        ]
+          }]
+        }]
       };
 
       function section(name, en, ar){
