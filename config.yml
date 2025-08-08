@@ -126,4 +126,3 @@ collections:
                         name: images
                         widget: list
                         field: { label: Image filename, name: image, widget: string }
-
