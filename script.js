@@ -98,6 +98,24 @@ async function renderUI(lang) {
   document.documentElement.lang = lang;
   document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
 
+  // Update SEO meta and URL parameter
+  const url = new URL(window.location.href);
+  url.searchParams.set('lang', lang);
+  window.history.replaceState({}, '', url.toString());
+
+  const isAr = lang === 'ar';
+  const titleText = isAr ? 'بوظة مستر كيك | Master Cake — القائمة' : 'Master Cake — Premium Menu';
+  document.title = titleText;
+  const metaDesc = document.getElementById('metaDescription');
+  metaDesc?.setAttribute('content', isAr ? 'قائمة بوظة مستر كيك — مشروبات باردة وساخنة، حلويات، أركيلة، وبوظة.' : 'Master Cake menu — cold/hot drinks, sweets, argillies, and ice cream.');
+  document.getElementById('canonicalLink')?.setAttribute('href', `${url.origin}${url.pathname}`);
+  document.getElementById('ogTitle')?.setAttribute('content', titleText);
+  document.getElementById('ogDescription')?.setAttribute('content', metaDesc?.content || '');
+  document.getElementById('ogUrl')?.setAttribute('content', `${url.origin}${url.pathname}?lang=${lang}`);
+  document.getElementById('ogLocale')?.setAttribute('content', isAr ? 'ar_AR' : 'en_US');
+  document.getElementById('twTitle')?.setAttribute('content', titleText);
+  document.getElementById('twDescription')?.setAttribute('content', metaDesc?.content || '');
+
   $('#brandName').textContent = t.name;
   $('#footName').textContent = t.name;
   $('#brandTag').textContent = t.tag;
