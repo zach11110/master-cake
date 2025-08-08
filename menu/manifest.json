@@ -11,14 +11,6 @@
       "en": "Cold Drinks",
       "items": [
         {
-          "id": "iced-latte",
-          "arName": "",
-          "enName": "",
-          "descriptionAr": "الكابتشينو هو مشروب قهوة كلاسيكي من أصل إيطالي، يتكوّن من كميات متساوية من الإسبريسو، والحليب المبخّر، ورغوة الحليب. يتميز بمذاقه القوي وقوامه الكريمي الناعم.",
-          "descriptionEn": "Cappuccino is a classic Italian coffee drink made with equal parts of espresso, steamed milk, and milk foam. It’s rich, creamy, and has a strong espresso flavor with a velvety texture.",
-          "images": []
-        },
-        {
           "id": "iced-americano",
           "arName": "ايسد امريكانو",
           "enName": "Iced Americano",
