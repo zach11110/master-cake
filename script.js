@@ -172,11 +172,12 @@ async function renderUI(lang) {
       const title = lang === 'ar' ? (it.arName || it.title) : (it.enName || it.title);
       const desc = lang === 'ar' ? (it.descriptionAr || it.note) : (it.descriptionEn || it.note);
       const firstImg = (it.images && it.images[0]) ? `menu/${key}/${it.images[0]}` : '';
+      const price = it.price ? (lang === 'ar' ? `${it.price} ل.س` : `$${it.price}`) : '';
       item.innerHTML = `
         ${firstImg ? `<img class="thumb" src="${firstImg}" alt="${title}" loading="lazy" decoding="async" />` : `<div class="thumb" aria-hidden="true"></div>`}
         <h3>${title}</h3>
         <p>${desc || ''}</p>
-        <span class="pill">${it.badge || (lang === 'ar' ? 'جديد' : 'NEW')}</span>
+        ${price ? `<div class="pill">${price}</div>` : `<span class="pill">${it.badge || (lang === 'ar' ? 'جديد' : 'NEW')}</span>`}
       `;
       item.addEventListener('click', () => openLightbox({ sectionKey: key, item: it, lang }));
       itemsWrap.appendChild(item);

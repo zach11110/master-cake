@@ -41,6 +41,11 @@
           <label>Section</label>
           <select id="sectionSelect"></select>
           <div id="itemsTable"></div>
+          <div class="actions" style="margin-top:10px">
+            <button id="btnLoadSelected" style="background:#111">Load selected</button>
+            <button id="btnDeleteSelected" style="background:#b31422">Delete selected</button>
+            <span id="tableMsg" class="muted"></span>
+          </div>
         </section>
         <aside class="card">
           <h3>Upload Images</h3>
@@ -71,6 +76,16 @@
             <textarea id="formDescAr" rows="4"></textarea>
             <label>English Description</label>
             <textarea id="formDescEn" rows="4"></textarea>
+          </div>
+        </div>
+        <div class="row" style="grid-template-columns: 1fr 1fr">
+          <div>
+            <label>Price</label>
+            <input id="formPrice" placeholder="e.g. 3.50" />
+          </div>
+          <div>
+            <label>Badge (e.g. NEW, ★)</label>
+            <input id="formBadge" placeholder="optional" />
           </div>
         </div>
         <label>Images (comma-separated filenames)</label>
@@ -130,6 +145,8 @@
             enName: document.getElementById('formEnName').value.trim(),
             descriptionAr: document.getElementById('formDescAr').value.trim(),
             descriptionEn: document.getElementById('formDescEn').value.trim(),
+            price: document.getElementById('formPrice').value.trim(),
+            badge: document.getElementById('formBadge').value.trim(),
             images: document.getElementById('formImages').value.split(',').map(s=>s.trim()).filter(Boolean)
           };
           try{
@@ -140,17 +157,55 @@
           }
         });
 
+        document.getElementById('btnLoadSelected').addEventListener('click', ()=>{
+          const sec = document.getElementById('sectionSelect').value;
+          const id = selectedId;
+          if(!id){ document.getElementById('tableMsg').textContent = 'Select an item row first'; return; }
+          const it = currentItems.find(i=>i.id===id);
+          if(!it){ document.getElementById('tableMsg').textContent = 'Item not found'; return; }
+          document.getElementById('formSection').value = sec;
+          document.getElementById('formId').value = it.id || '';
+          document.getElementById('formArName').value = it.arName || '';
+          document.getElementById('formEnName').value = it.enName || '';
+          document.getElementById('formDescAr').value = it.descriptionAr || '';
+          document.getElementById('formDescEn').value = it.descriptionEn || '';
+          document.getElementById('formPrice').value = it.price || '';
+          document.getElementById('formBadge').value = it.badge || '';
+          document.getElementById('formImages').value = (it.images||[]).join(', ');
+          document.getElementById('tableMsg').textContent = 'Loaded into form';
+        });
+
+        document.getElementById('btnDeleteSelected').addEventListener('click', async ()=>{
+          if(!selectedId){ document.getElementById('tableMsg').textContent = 'Select an item row first'; return; }
+          const sec = document.getElementById('sectionSelect').value;
+          try{
+            await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ section: sec, item: { id: selectedId, _delete: true } }) });
+            document.getElementById('tableMsg').textContent = 'Deleted ✔ — refresh the page';
+          }catch(e){
+            document.getElementById('tableMsg').textContent = 'Delete failed: '+e.message;
+          }
+        });
+
         document.getElementById('btnLogout').addEventListener('click', async ()=>{
           await fetch('/api/admin/logout', { method:'POST' });
           location.href='/admin/';
         });
       }
 
+      let selectedId = null;
+      let currentItems = [];
       function renderItems(manifest, section){
         const container = document.getElementById('itemsTable');
-        const items = manifest.sections?.[section]?.items || [];
-        const rows = items.map(it=>`<tr><td>${it.id}</td><td>${it.arName||''}</td><td>${it.enName||''}</td><td class='muted'>${(it.images||[]).join(', ')}</td></tr>`).join('');
-        container.innerHTML = `<table><thead><tr><th>ID</th><th>AR</th><th>EN</th><th>Images</th></tr></thead><tbody>${rows}</tbody></table>`;
+        currentItems = manifest.sections?.[section]?.items || [];
+        const rows = currentItems.map(it=>`<tr data-id="${it.id}"><td>${it.id}</td><td>${it.arName||''}</td><td>${it.enName||''}</td><td class='muted'>${(it.images||[]).join(', ')}</td><td>${it.price||''}</td></tr>`).join('');
+        container.innerHTML = `<table><thead><tr><th>ID</th><th>AR</th><th>EN</th><th>Images</th><th>Price</th></tr></thead><tbody>${rows}</tbody></table>`;
+        container.querySelectorAll('tbody tr').forEach(tr=>{
+          tr.addEventListener('click', ()=>{
+            container.querySelectorAll('tbody tr').forEach(r=> r.style.background='');
+            tr.style.background = '#fff1ea';
+            selectedId = tr.getAttribute('data-id');
+          });
+        });
       }
 
       init();

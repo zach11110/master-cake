@@ -29,13 +29,30 @@ export default async function handler(req, res) {
     const sha = getData.sha;
     const json = JSON.parse(Buffer.from(getData.content, 'base64').toString('utf8'));
 
-    // 2) Modify
+    // 2) Modify with partial update (ignore empty strings/arrays)
     json.sections = json.sections || {};
     json.sections[section] = json.sections[section] || { items: [], ar: '', en: '' };
     const items = json.sections[section].items || [];
+    const sanitize = (obj) => {
+      const allowedKeys = ['arName','enName','descriptionAr','descriptionEn','images','price','badge'];
+      const out = { id: obj.id };
+      for (const k of allowedKeys) {
+        if (!(k in obj)) continue;
+        const v = obj[k];
+        if (Array.isArray(v)) { if (v.length) out[k] = v; continue; }
+        if (typeof v === 'string') { if (v.trim() !== '') out[k] = v.trim(); continue; }
+        if (v !== undefined && v !== null) out[k] = v;
+      }
+      return out;
+    };
+    const patch = sanitize(item);
     const idx = items.findIndex(i => i.id === item.id);
-    if(idx >= 0) items[idx] = { ...items[idx], ...item };
-    else items.push(item);
+    if (item._delete) {
+      if (idx >= 0) items.splice(idx, 1);
+    } else {
+      if(idx >= 0) items[idx] = { ...items[idx], ...patch };
+      else items.push(patch);
+    }
     json.sections[section].items = items;
 
     const newContent = Buffer.from(JSON.stringify(json, null, 2)).toString('base64');
