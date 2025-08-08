@@ -8,10 +8,12 @@
   </head>
   <body>
     <!-- Manual init to avoid fetching config.yml -->
-    <script>window.CMS_MANUAL_INIT = true;</script>
+    <script>
+      window.CMS_MANUAL_INIT = true;
+    </script>
     <script src="https://unpkg.com/decap-cms@^3.8.3/dist/decap-cms.js"></script>
     <script>
-      (function(){
+      document.addEventListener('DOMContentLoaded', function() {
         function section(name, en, ar){
           return {
             label: en,
@@ -70,10 +72,14 @@
           }]
         };
 
-        window.CMS.init({ config });
-      })();
+        // Initialize CMS
+        try {
+          window.CMS.init({ config });
+          console.log('CMS initialized successfully');
+        } catch (error) {
+          console.error('CMS initialization error:', error);
+        }
+      });
     </script>
   </body>
 </html>
-
- 

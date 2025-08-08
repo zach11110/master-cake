@@ -6,10 +6,83 @@
     "tagEn": "A modern, premium menu experience"
   },
   "sections": {
-    "cold_drinks": { "ar": "مشروبات باردة", "en": "Cold Drinks", "items": [] },
-    "hot_drinks": { "ar": "مشروبات ساخنة", "en": "Hot Drinks", "items": [] },
-    "sweets": { "ar": "حلويات", "en": "Sweets", "items": [] },
-    "argillies": { "ar": "أركيلة", "en": "Argillies (Hookah)", "items": [] },
-    "ice_cream": { "ar": "بوظة / آيس كريم", "en": "Ice Cream", "items": [] }
+    "cold_drinks": {
+      "ar": "مشروبات باردة",
+      "en": "Cold Drinks",
+      "items": [
+        {
+          "id": "iced-latte",
+          "arName": "ايسد لاتيه",
+          "enName": "Iced Latte",
+          "descriptionAr": "حليب بارد مع اسبريسو ومكعبات ثلج.",
+          "descriptionEn": "Cold milk with espresso and ice cubes.",
+          "images": ["iced-latte-1.jpg", "iced-latte-2.jpg"]
+        },
+        {
+          "id": "iced-americano",
+          "arName": "ايسد امريكانو",
+          "enName": "Iced Americano",
+          "descriptionAr": "اسبريسو مع ماء بارد وثلج.",
+          "descriptionEn": "Espresso over cold water and ice.",
+          "images": ["iced-americano-1.jpg", "iced-americano-2.jpg"]
+        }
+      ]
+    },
+    "hot_drinks": {
+      "ar": "مشروبات ساخنة",
+      "en": "Hot Drinks",
+      "items": [
+        {
+          "id": "cappuccino",
+          "arName": "كابتشينو",
+          "enName": "Cappuccino",
+          "descriptionAr": "اسبريسو مع حليب مبخر ورغوة.",
+          "descriptionEn": "Espresso with steamed milk and foam.",
+          "images": []
+        }
+      ]
+    },
+    "sweets": {
+      "ar": "حلويات",
+      "en": "Sweets",
+      "items": [
+        {
+          "id": "cheesecake",
+          "arName": "تشيزكيك",
+          "enName": "Cheesecake",
+          "descriptionAr": "طبقة بسكويت زبدية وكريمة جبن.",
+          "descriptionEn": "Buttery biscuit crust with cream cheese.",
+          "images": []
+        }
+      ]
+    },
+    "argillies": {
+      "ar": "أركيلة",
+      "en": "Argillies (Hookah)",
+      "items": [
+        {
+          "id": "mint-mix",
+          "arName": "نعناع ميكس",
+          "enName": "Mint Mix",
+          "descriptionAr": "نكهات نعناع منعشة.",
+          "descriptionEn": "Refreshing mint blends.",
+          "images": []
+        }
+      ]
+    },
+    "ice_cream": {
+      "ar": "بوظة / آيس كريم",
+      "en": "Ice Cream",
+      "items": [
+        {
+          "id": "pistachio",
+          "arName": "فستق حلبي",
+          "enName": "Pistachio",
+          "descriptionAr": "بوظة فستق كريمية.",
+          "descriptionEn": "Creamy pistachio ice cream.",
+          "images": []
+        }
+      ]
+    }
   }
 }
