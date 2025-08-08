@@ -36,7 +36,8 @@
           "images": [
             "cappuccino_12.jpg"
           ],
-          "badge": "Promo"
+          "badge": "Promo",
+          "price": "12500"
         }
       ]
     },
