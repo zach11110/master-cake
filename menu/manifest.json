@@ -41,9 +41,11 @@
           "id": "cappuccino",
           "arName": "كابتشينو",
           "enName": "Cappuccino",
-          "descriptionAr": "اسبريسو مع حليب مبخر ورغوة.",
-          "descriptionEn": "Espresso with steamed milk and foam.",
-          "images": []
+          "descriptionAr": "",
+          "descriptionEn": "",
+          "images": [
+            "cappuccino_12.jpg"
+          ]
         }
       ]
     },
