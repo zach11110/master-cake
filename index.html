@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#E01F2D" />
+    <title>بوظة مستر كيك | Master Cake — Premium Menu</title>
+
+    <!-- Fonts: Arabic + Latin -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&family=Poppins:wght@400;600;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="icon" type="image/png" href="Logo.png" />
+    <link rel="shortcut icon" type="image/png" href="Logo.png" />
+    <link rel="apple-touch-icon" href="Logo.png" />
+
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="script.js"></script>
+  </head>
+
+  <body>
+    <!-- Decorative background -->
+    <div class="bg fx fx-1"></div>
+    <div class="bg fx fx-2"></div>
+    <div class="bg fx fx-3"></div>
+
+    <header class="app-header container">
+      <div class="brand">
+        <!-- Use provided PNG logo -->
+        <img class="logo-img" src="Logo.png" alt="بوظة مستر كيك | Master Cake" decoding="async" />
+
+        <div class="brand-text">
+          <h1 id="brandName">بوظة مستر كيك</h1>
+          <p id="brandTag">قائمة راقية بطابع حديث</p>
+        </div>
+      </div>
+
+      <div class="controls">
+        <nav id="quickNav" class="chips" aria-label="Sections"></nav>
+        <div class="divider"></div>
+        <div class="lang-switch" role="group" aria-label="Change language">
+          <button id="btnAR" class="lang active" data-lang="ar">AR</button>
+          <button id="btnEN" class="lang" data-lang="en">EN</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="sectionsRoot" class="sections"></section>
+    </main>
+
+    <!-- Lightbox / Gallery Modal -->
+    <div id="lightbox" class="lightbox hidden" aria-hidden="true">
+      <div class="lightbox-backdrop"></div>
+      <div class="lightbox-dialog" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+        <button class="lb-close" aria-label="Close">✕</button>
+        <div class="lb-grid">
+          <div class="lb-media">
+            <img id="lbMainImg" alt="" />
+            <div id="lbThumbs" class="lb-thumbs"></div>
+          </div>
+          <div class="lb-info">
+            <h3 id="lbTitle"></h3>
+            <p id="lbDesc"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="container footer">
+      <small>
+        © <span id="footName">بوظة مستر كيك</span>. Crafted with love. Replace demo items with your real menu anytime.
+      </small>
+    </footer>
+  </body>
+</html>
+

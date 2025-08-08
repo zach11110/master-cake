@@ -1,0 +1,274 @@
+// Core data fallback: bilingual sections and demo items (used if manifest is missing)
+const BRAND_FALLBACK = {
+  ar: {
+    name: 'بوظة مستر كيك',
+    tag: 'قائمة راقية بطابع حديث',
+    sections: {
+      cold_drinks: 'مشروبات باردة',
+      hot_drinks: 'مشروبات ساخنة',
+      sweets: 'حلويات',
+      argillies: 'أركيلة',
+      ice_cream: 'بوظة / آيس كريم'
+    },
+    demo: 'صنف تجريبي',
+    note: 'عينات عرض فقط — استبدل بمحتوى حقيقي'
+  },
+  en: {
+    name: 'Master Cake',
+    tag: 'A modern, premium menu experience',
+    sections: {
+      cold_drinks: 'Cold Drinks',
+      hot_drinks: 'Hot Drinks',
+      sweets: 'Sweets',
+      argillies: 'Argillies (Hookah)',
+      ice_cream: 'Ice Cream'
+    },
+    demo: 'Demo Item',
+    note: 'Demo only — replace with your real items'
+  }
+};
+
+const SECTION_ORDER = ['cold_drinks', 'hot_drinks', 'sweets', 'argillies', 'ice_cream'];
+
+// Generate some demo items per section
+function buildDemoItems(label) {
+  return Array.from({ length: 6 }).map((_, i) => ({
+    title: `${label} ${i + 1}`,
+    note: i % 2 ? 'Signature style' : 'Best seller',
+    badge: i % 3 ? 'NEW' : '★'
+  }));
+}
+
+function $(sel) { return document.querySelector(sel); }
+
+let manifestLoadAttempted = false;
+async function loadManifest() {
+  // Always load the JS manifest to avoid CORS/file:// issues
+  return await loadManifestFromJS();
+}
+
+function loadManifestFromJS() {
+  return new Promise((resolve) => {
+    if (window.MENU_MANIFEST) return resolve(window.MENU_MANIFEST);
+    if (manifestLoadAttempted) return resolve(null);
+    manifestLoadAttempted = true;
+
+    const s = document.createElement('script');
+    s.src = 'menu/manifest.js';
+    s.defer = true;
+    s.onload = () => resolve(window.MENU_MANIFEST || null);
+    s.onerror = () => resolve(null);
+    document.head.appendChild(s);
+  });
+}
+
+function getBrand(t, lang) {
+  if (!t) return BRAND_FALLBACK[lang];
+  return {
+    name: lang === 'ar' ? (t.brand?.arName || BRAND_FALLBACK.ar.name) : (t.brand?.enName || BRAND_FALLBACK.en.name),
+    tag: lang === 'ar' ? (t.brand?.tagAr || BRAND_FALLBACK.ar.tag) : (t.brand?.tagEn || BRAND_FALLBACK.en.tag),
+    sections: SECTION_ORDER.reduce((acc, key) => {
+      const sec = t.sections?.[key];
+      acc[key] = lang === 'ar' ? (sec?.ar || BRAND_FALLBACK.ar.sections[key]) : (sec?.en || BRAND_FALLBACK.en.sections[key]);
+      return acc;
+    }, {})
+  };
+}
+
+function buildItemsForSection(manifest, sectionKey, lang) {
+  const items = manifest?.sections?.[sectionKey]?.items || [];
+  if (items.length === 0) {
+    // Provide a few demo items if empty
+    const label = lang === 'ar' ? BRAND_FALLBACK.ar.demo : BRAND_FALLBACK.en.demo;
+    return Array.from({ length: 6 }).map((_, i) => ({
+      id: `demo-${sectionKey}-${i + 1}`,
+      arName: `${label} ${i + 1}`,
+      enName: `${label} ${i + 1}`,
+      descriptionAr: 'وصف تجريبي للصنف. استبدله بالمكونات الحقيقية.',
+      descriptionEn: 'Demo description. Replace with real ingredients.',
+      images: []
+    }));
+  }
+  return items;
+}
+
+async function renderUI(lang) {
+  const manifest = await loadManifest();
+  const t = getBrand(manifest, lang);
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+  $('#brandName').textContent = t.name;
+  $('#footName').textContent = t.name;
+  $('#brandTag').textContent = t.tag;
+
+  // Render quick nav chips
+  const quickNav = $('#quickNav');
+  quickNav.innerHTML = '';
+  SECTION_ORDER.forEach((key) => {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.textContent = t.sections[key];
+    chip.addEventListener('click', () => {
+      document.getElementById(`sec-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    quickNav.appendChild(chip);
+  });
+
+  // Render sections with demo items
+  const root = $('#sectionsRoot');
+  root.innerHTML = '';
+
+  SECTION_ORDER.forEach((key, idx) => {
+    const card = document.createElement('article');
+    card.className = 'section-card';
+    card.id = `sec-${key}`;
+
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `
+      <div class="section-title">
+        <span class="badge">${idx + 1}</span>
+        <h2>${t.sections[key]}</h2>
+      </div>
+      <p class="section-note">${(lang === 'ar' ? BRAND_FALLBACK.ar.note : BRAND_FALLBACK.en.note)}</p>
+    `;
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'items';
+
+    const items = buildItemsForSection(manifest, key, lang);
+    items.forEach((it) => {
+      const item = document.createElement('div');
+      item.className = 'item';
+      const title = lang === 'ar' ? (it.arName || it.title) : (it.enName || it.title);
+      const desc = lang === 'ar' ? (it.descriptionAr || it.note) : (it.descriptionEn || it.note);
+      const firstImg = (it.images && it.images[0]) ? `menu/${key}/${it.images[0]}` : '';
+      item.innerHTML = `
+        ${firstImg ? `<img class="thumb" src="${firstImg}" alt="${title}" loading="lazy" decoding="async" />` : `<div class="thumb" aria-hidden="true"></div>`}
+        <h3>${title}</h3>
+        <p>${desc || ''}</p>
+        <span class="pill">${it.badge || (lang === 'ar' ? 'جديد' : 'NEW')}</span>
+      `;
+      item.addEventListener('click', () => openLightbox({ sectionKey: key, item: it, lang }));
+      itemsWrap.appendChild(item);
+    });
+
+    card.appendChild(header);
+    card.appendChild(itemsWrap);
+    root.appendChild(card);
+  });
+
+  // Animate items on view
+  revealOnScroll();
+
+  // Update lang buttons
+  document.querySelectorAll('.lang').forEach((btn) => btn.classList.toggle('active', btn.dataset.lang === lang));
+}
+
+function revealOnScroll() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('show');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.2 });
+
+  document.querySelectorAll('.item').forEach((el, i) => {
+    el.style.transitionDelay = `${(i % 6) * 60}ms`;
+    observer.observe(el);
+  });
+}
+
+// Language switch
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('mc_lang') || 'ar';
+  renderUI(saved);
+
+  document.getElementById('btnAR').addEventListener('click', () => {
+    localStorage.setItem('mc_lang', 'ar');
+    renderUI('ar');
+  });
+  document.getElementById('btnEN').addEventListener('click', () => {
+    localStorage.setItem('mc_lang', 'en');
+    renderUI('en');
+  });
+});
+
+// Lightbox / Gallery
+const lb = {
+  el: null,
+  main: null,
+  thumbs: null,
+  title: null,
+  desc: null,
+  closeBtn: null,
+  state: { images: [], index: 0 }
+};
+
+function initLightbox() {
+  lb.el = document.getElementById('lightbox');
+  lb.main = document.getElementById('lbMainImg');
+  lb.thumbs = document.getElementById('lbThumbs');
+  lb.title = document.getElementById('lbTitle');
+  lb.desc = document.getElementById('lbDesc');
+  lb.closeBtn = document.querySelector('.lb-close');
+  lb.closeBtn.addEventListener('click', closeLightbox);
+  lb.el.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
+  window.addEventListener('keydown', (e) => {
+    if (lb.el.classList.contains('hidden')) return;
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowRight') showIndex(Math.min(lb.state.index + 1, lb.state.images.length - 1));
+    if (e.key === 'ArrowLeft') showIndex(Math.max(lb.state.index - 1, 0));
+  });
+}
+
+function openLightbox({ sectionKey, item, lang }) {
+  if (!lb.el) initLightbox();
+  const title = lang === 'ar' ? (item.arName || item.title) : (item.enName || item.title);
+  const desc = lang === 'ar' ? (item.descriptionAr || '') : (item.descriptionEn || '');
+  lb.title.textContent = title;
+  lb.desc.textContent = desc;
+
+  const images = (item.images || []).map((f) => `menu/${sectionKey}/${f}`);
+  lb.state.images = images.length ? images : [''];
+  lb.state.index = 0;
+  renderThumbs();
+  showIndex(0);
+
+  lb.el.classList.remove('hidden');
+  lb.el.setAttribute('aria-hidden', 'false');
+}
+
+function closeLightbox() {
+  lb.el.classList.add('hidden');
+  lb.el.setAttribute('aria-hidden', 'true');
+}
+
+function renderThumbs() {
+  lb.thumbs.innerHTML = '';
+  lb.state.images.forEach((src, i) => {
+    const im = document.createElement('img');
+    im.src = src || '';
+    im.alt = `thumb-${i + 1}`;
+    im.addEventListener('click', () => showIndex(i));
+    lb.thumbs.appendChild(im);
+  });
+}
+
+function showIndex(i) {
+  lb.state.index = i;
+  const src = lb.state.images[i];
+  if (!src) {
+    // fallback image (blank)
+    lb.main.removeAttribute('src');
+    lb.main.style.background = 'linear-gradient(135deg, #ffe1d2, #fff1ea)';
+  } else {
+    lb.main.src = src;
+    lb.main.style.background = '#fff';
+  }
+  Array.from(lb.thumbs.children).forEach((c, idx) => c.classList.toggle('active', idx === i));
+}
+
