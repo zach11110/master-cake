@@ -113,8 +113,12 @@ async function renderUI(lang) {
   document.getElementById('ogDescription')?.setAttribute('content', metaDesc?.content || '');
   document.getElementById('ogUrl')?.setAttribute('content', `${url.origin}${url.pathname}?lang=${lang}`);
   document.getElementById('ogLocale')?.setAttribute('content', isAr ? 'ar_AR' : 'en_US');
+  const absImage = `${url.origin}/Logo.png`;
+  document.getElementById('ogImage')?.setAttribute('content', absImage);
+  document.getElementById('ogImageSecure')?.setAttribute('content', absImage);
   document.getElementById('twTitle')?.setAttribute('content', titleText);
   document.getElementById('twDescription')?.setAttribute('content', metaDesc?.content || '');
+  document.getElementById('twImage')?.setAttribute('content', absImage);
 
   $('#brandName').textContent = t.name;
   $('#footName').textContent = t.name;
