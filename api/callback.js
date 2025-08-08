@@ -37,7 +37,9 @@ export default async function handler(req, res) {
               window.opener.postMessage(msg, '*');
             }
           }
+          // Both formats for compatibility
           send('authorization:github:success:' + ${JSON.stringify(payload)});
+          send('github:auth:success:' + ${JSON.stringify(payload)});
           window.close();
         })();
       </script>

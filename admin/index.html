@@ -69,7 +69,16 @@
         };
       }
 
-      window.CMS.init({ config });
+      const origin = location.origin;
+      const allowed = [origin];
+      window.addEventListener('message', (event) => {
+        const data = String(event.data || '');
+        if (data.startsWith('authorization:github:success:') || data.startsWith('github:auth:success:')) {
+          // Let CMS handle it; nothing to do here
+        }
+      });
+
+      window.CMS.init({ config, configYml: config });
     })();"></script>
   </body>
 </html>

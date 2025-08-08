@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const scope = (req.query.scope || 'public_repo').toString();
+  const scope = (req.query.scope || 'repo').toString();
   const state = Math.random().toString(36).slice(2);
 
   // Build redirect_uri dynamically based on current host
