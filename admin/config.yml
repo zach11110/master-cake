@@ -1,0 +1,129 @@
+backend:
+  name: github
+  repo: zach11110/master-cake
+  branch: main
+  base_url: /api
+  auth_endpoint: auth
+
+publish_mode: editorial_workflow
+media_folder: menu/uploads
+public_folder: /menu/uploads
+
+collections:
+  - name: settings
+    label: Menu Settings
+    files:
+      - file: menu/manifest.json
+        label: Master Menu
+        name: master_menu
+        format: json
+        fields:
+          - label: Brand
+            name: brand
+            widget: object
+            fields:
+              - { label: Arabic Name, name: arName, widget: string }
+              - { label: English Name, name: enName, widget: string }
+              - { label: Arabic Tagline, name: tagAr, widget: string }
+              - { label: English Tagline, name: tagEn, widget: string }
+
+          - label: Sections
+            name: sections
+            widget: object
+            fields:
+              - label: Cold Drinks
+                name: cold_drinks
+                widget: object
+                fields:
+                  - { label: Arabic Label, name: ar, widget: string }
+                  - { label: English Label, name: en, widget: string }
+                  - label: Items
+                    name: items
+                    widget: list
+                    fields:
+                      - { label: ID, name: id, widget: string }
+                      - { label: Arabic Name, name: arName, widget: string }
+                      - { label: English Name, name: enName, widget: string }
+                      - { label: Arabic Description, name: descriptionAr, widget: text, required: false }
+                      - { label: English Description, name: descriptionEn, widget: text, required: false }
+                      - label: Images
+                        name: images
+                        widget: list
+                        field: { label: Image filename, name: image, widget: string }
+              - label: Hot Drinks
+                name: hot_drinks
+                widget: object
+                fields:
+                  - { label: Arabic Label, name: ar, widget: string }
+                  - { label: English Label, name: en, widget: string }
+                  - label: Items
+                    name: items
+                    widget: list
+                    fields:
+                      - { label: ID, name: id, widget: string }
+                      - { label: Arabic Name, name: arName, widget: string }
+                      - { label: English Name, name: enName, widget: string }
+                      - { label: Arabic Description, name: descriptionAr, widget: text, required: false }
+                      - { label: English Description, name: descriptionEn, widget: text, required: false }
+                      - label: Images
+                        name: images
+                        widget: list
+                        field: { label: Image filename, name: image, widget: string }
+              - label: Sweets
+                name: sweets
+                widget: object
+                fields:
+                  - { label: Arabic Label, name: ar, widget: string }
+                  - { label: English Label, name: en, widget: string }
+                  - label: Items
+                    name: items
+                    widget: list
+                    fields:
+                      - { label: ID, name: id, widget: string }
+                      - { label: Arabic Name, name: arName, widget: string }
+                      - { label: English Name, name: enName, widget: string }
+                      - { label: Arabic Description, name: descriptionAr, widget: text, required: false }
+                      - { label: English Description, name: descriptionEn, widget: text, required: false }
+                      - label: Images
+                        name: images
+                        widget: list
+                        field: { label: Image filename, name: image, widget: string }
+              - label: Argillies
+                name: argillies
+                widget: object
+                fields:
+                  - { label: Arabic Label, name: ar, widget: string }
+                  - { label: English Label, name: en, widget: string }
+                  - label: Items
+                    name: items
+                    widget: list
+                    fields:
+                      - { label: ID, name: id, widget: string }
+                      - { label: Arabic Name, name: arName, widget: string }
+                      - { label: English Name, name: enName, widget: string }
+                      - { label: Arabic Description, name: descriptionAr, widget: text, required: false }
+                      - { label: English Description, name: descriptionEn, widget: text, required: false }
+                      - label: Images
+                        name: images
+                        widget: list
+                        field: { label: Image filename, name: image, widget: string }
+              - label: Ice Cream
+                name: ice_cream
+                widget: object
+                fields:
+                  - { label: Arabic Label, name: ar, widget: string }
+                  - { label: English Label, name: en, widget: string }
+                  - label: Items
+                    name: items
+                    widget: list
+                    fields:
+                      - { label: ID, name: id, widget: string }
+                      - { label: Arabic Name, name: arName, widget: string }
+                      - { label: English Name, name: enName, widget: string }
+                      - { label: Arabic Description, name: descriptionAr, widget: text, required: false }
+                      - { label: English Description, name: descriptionEn, widget: text, required: false }
+                      - label: Images
+                        name: images
+                        widget: list
+                        field: { label: Image filename, name: image, widget: string }
+

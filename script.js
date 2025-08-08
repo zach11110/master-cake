@@ -43,7 +43,13 @@ function $(sel) { return document.querySelector(sel); }
 
 let manifestLoadAttempted = false;
 async function loadManifest() {
-  // Always load the JS manifest to avoid CORS/file:// issues
+  // Prefer JSON on HTTP(S), fallback to JS for file:// or errors
+  try {
+    if (location.protocol === 'http:' || location.protocol === 'https:') {
+      const res = await fetch('menu/manifest.json', { cache: 'no-store' });
+      if (res.ok) return await res.json();
+    }
+  } catch (e) {}
   return await loadManifestFromJS();
 }
 

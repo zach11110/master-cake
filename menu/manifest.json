@@ -1,0 +1,15 @@
+{
+  "brand": {
+    "arName": "بوظة ماستر كيك",
+    "enName": "Master Cake",
+    "tagAr": "قائمة راقية بطابع حديث",
+    "tagEn": "A modern, premium menu experience"
+  },
+  "sections": {
+    "cold_drinks": { "ar": "مشروبات باردة", "en": "Cold Drinks", "items": [] },
+    "hot_drinks": { "ar": "مشروبات ساخنة", "en": "Hot Drinks", "items": [] },
+    "sweets": { "ar": "حلويات", "en": "Sweets", "items": [] },
+    "argillies": { "ar": "أركيلة", "en": "Argillies (Hookah)", "items": [] },
+    "ice_cream": { "ar": "بوظة / آيس كريم", "en": "Ice Cream", "items": [] }
+  }
+}
