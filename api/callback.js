@@ -8,15 +8,13 @@ export default async function handler(req, res) {
     }, {});
 
     if (!code || !state || !cookies.oauth_state || state !== cookies.oauth_state) {
-      res.status(400).json({ error: 'Invalid state or code' });
-      return;
+      return renderError(res, 'Invalid state or code');
     }
 
     const clientId = process.env.OAUTH_CLIENT_ID;
     const clientSecret = process.env.OAUTH_CLIENT_SECRET;
     if (!clientId || !clientSecret) {
-      res.status(500).json({ error: 'Missing OAuth env vars' });
-      return;
+      return renderError(res, 'Missing OAuth env vars');
     }
 
     const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
@@ -26,15 +24,45 @@ export default async function handler(req, res) {
     });
     const tokenJson = await tokenRes.json();
     if (!tokenJson.access_token) {
-      res.status(400).json({ error: 'Failed to obtain token', details: tokenJson });
-      return;
+      return renderError(res, 'Failed to obtain token');
     }
 
-    // Decap CMS expects JSON { token: "..." }
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ token: tokenJson.access_token }));
+    // Respond with a small HTML page that notifies the opener (Decap CMS) and closes.
+    const payload = JSON.stringify({ token: tokenJson.access_token });
+    const html = `<!doctype html><html><body>
+      <script>
+        (function(){
+          function send(msg){
+            if (window.opener && typeof window.opener.postMessage === 'function') {
+              window.opener.postMessage(msg, '*');
+            }
+          }
+          send('authorization:github:success:' + ${JSON.stringify(payload)});
+          window.close();
+        })();
+      </script>
+      Success. You can close this window.
+    </body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).end(html);
   } catch (e) {
-    res.status(500).json({ error: 'OAuth callback error', details: String(e) });
+    return renderError(res, 'OAuth callback error');
   }
+}
+
+function renderError(res, message) {
+  const err = JSON.stringify({ error: message });
+  const html = `<!doctype html><html><body>
+    <script>
+      (function(){
+        if (window.opener && typeof window.opener.postMessage === 'function') {
+          window.opener.postMessage('authorization:github:error:' + ${JSON.stringify(err)}, '*');
+        }
+      })();
+    </script>
+    Error: ${message}
+  </body></html>`;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(400).end(html);
 }
 
