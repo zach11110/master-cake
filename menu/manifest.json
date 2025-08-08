@@ -16,15 +16,20 @@
           "enName": "Iced Latte",
           "descriptionAr": "حليب بارد مع اسبريسو ومكعبات ثلج.",
           "descriptionEn": "Cold milk with espresso and ice cubes.",
-          "images": ["iced-latte-1.jpg", "iced-latte-2.jpg"]
+          "images": [
+            "iced-latte-1.jpg",
+            "iced-latte-2.jpg"
+          ]
         },
         {
           "id": "iced-americano",
           "arName": "ايسد امريكانو",
           "enName": "Iced Americano",
-          "descriptionAr": "اسبريسو مع ماء بارد وثلج.",
-          "descriptionEn": "Espresso over cold water and ice.",
-          "images": ["iced-americano-1.jpg", "iced-americano-2.jpg"]
+          "descriptionAr": "",
+          "descriptionEn": "",
+          "images": [
+            "iced-americano1.jpg"
+          ]
         }
       ]
     },
