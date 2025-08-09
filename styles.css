@@ -120,6 +120,7 @@ body {
 .item .pill { margin-top: 10px; display: inline-block; background: var(--brand-cream-2); color: var(--brand-red-ink); border-radius: 999px; padding: 6px 10px; font-weight: 700; font-size: 12px; }
 .pill-group { display:flex; gap:8px; flex-wrap: wrap; margin-top:8px; }
 .pill-badge { background: var(--brand-cream-2); }
+.pill-badge-new { background: #ffe066; color: #8a2a0a; box-shadow: 0 6px 14px rgba(255,160,0,.25); }
 .pill-price { background: #ffffff; border: 1px solid rgba(224,31,45,.2); }
 
 /* Footer */

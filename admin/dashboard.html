@@ -13,6 +13,8 @@
       @media(max-width:900px){ .row{ grid-template-columns: 1fr; } }
       @media(max-width:560px){ input, textarea, select, button { font-size:16px } }
       .card{background:#fff; border:1px solid #eee; border-radius:12px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.05)}
+      .form-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px }
+      @media(max-width:700px){ .form-grid{ grid-template-columns: 1fr } }
       label{display:block; font-weight:700; margin:8px 0 6px}
       input, textarea{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd}
       select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff}
@@ -61,7 +63,7 @@
 
       <section class="card">
         <h3>Add / Edit Item</h3>
-        <div class="row" style="grid-template-columns: 1fr 1fr">
+        <div class="form-grid">
           <div>
             <label>Section</label>
             <select id="formSection"></select>
@@ -79,7 +81,7 @@
             <textarea id="formDescEn" rows="4"></textarea>
           </div>
         </div>
-        <div class="row" style="grid-template-columns: 1fr 1fr">
+        <div class="form-grid">
           <div>
             <label>Price</label>
             <input id="formPrice" placeholder="e.g. 3.50" />

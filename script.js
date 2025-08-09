@@ -173,13 +173,18 @@ async function renderUI(lang) {
       const desc = lang === 'ar' ? (it.descriptionAr || it.note) : (it.descriptionEn || it.note);
       const firstImg = (it.images && it.images[0]) ? `menu/${key}/${it.images[0]}` : '';
       const price = it.price ? (lang === 'ar' ? `${it.price} ل.س` : `$${it.price}`) : '';
-      const badge = it.badge || '';
-      const pills = [badge && `<span class="pill pill-badge">${badge}</span>`, price && `<span class="pill pill-price">${price}</span>`].filter(Boolean).join('');
+      const defaultBadge = lang === 'ar' ? 'جديد' : 'NEW';
+      const badgeText = it.badge || '';
+      const isNew = (badgeText || '').toLowerCase() === 'new' || badgeText === 'جديد' || badgeText === '★';
+      const pills = [
+        badgeText && `<span class="pill pill-badge ${isNew ? 'pill-badge-new' : ''}">${badgeText}</span>`,
+        price && `<span class="pill pill-price">${price}</span>`
+      ].filter(Boolean).join('');
       item.innerHTML = `
         ${firstImg ? `<img class="thumb" src="${firstImg}" alt="${title}" loading="lazy" decoding="async" />` : `<div class="thumb" aria-hidden="true"></div>`}
         <h3>${title}</h3>
         <p>${desc || ''}</p>
-        <div class="pill-group">${pills || `<span class="pill">${lang === 'ar' ? 'جديد' : 'NEW'}</span>`}</div>
+        <div class="pill-group">${pills || `<span class="pill pill-badge pill-badge-new">${defaultBadge}</span>`}</div>
       `;
       item.addEventListener('click', () => openLightbox({ sectionKey: key, item: it, lang }));
       itemsWrap.appendChild(item);
