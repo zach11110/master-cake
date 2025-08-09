@@ -75,7 +75,7 @@
             <input id="formEnName" />
           </div>
           <div>
-            <label>Arabic Description</label>
+            <label>Arabic Description <button type="button" id="btnSuggest" style="float:inline-end;background:#0a7a3d">Suggest with AI</button></label>
             <textarea id="formDescAr" rows="4"></textarea>
             <label>English Description</label>
             <textarea id="formDescEn" rows="4"></textarea>
@@ -157,6 +157,27 @@
             document.getElementById('saveMsg').textContent = 'Saved ✔';
           }catch(e){
             document.getElementById('saveMsg').textContent = 'Error: '+e.message;
+          }
+        });
+
+        document.getElementById('btnSuggest').addEventListener('click', async ()=>{
+          const name = document.getElementById('formArName').value || document.getElementById('formEnName').value || document.getElementById('formId').value;
+          const section = document.getElementById('formSection').value;
+          if(!name){ document.getElementById('saveMsg').textContent = 'Enter item name first to use AI'; return; }
+          const old = document.getElementById('saveMsg').textContent;
+          document.getElementById('saveMsg').textContent = 'AI is writing…';
+          try{
+            const r = await fetch('/api/ai/suggest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, section }) });
+            const d = await r.json();
+            if(r.ok){
+              if(d.ar) document.getElementById('formDescAr').value = d.ar;
+              if(d.en) document.getElementById('formDescEn').value = d.en;
+              document.getElementById('saveMsg').textContent = 'Descriptions suggested ✔';
+            } else {
+              document.getElementById('saveMsg').textContent = d.error || 'AI error';
+            }
+          }catch(e){
+            document.getElementById('saveMsg').textContent = 'AI request failed';
           }
         });
 
