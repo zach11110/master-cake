@@ -1,240 +1,1160 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Master Cake Admin — Dashboard</title>
-    <link rel="icon" href="../Logo.png">
-    <style>
-      body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0; background:#faf7f6; color:#222}
-      header{display:flex; justify-content:space-between; align-items:center; padding:14px 16px; background:#e01f2d; color:#fff}
-      main{padding:16px; display:grid; gap:16px}
-      .row{display:grid; grid-template-columns: 3fr 2fr; gap:16px}
-      @media(max-width:900px){ .row{ grid-template-columns: 1fr; } }
-      @media(max-width:560px){ input, textarea, select, button { font-size:16px } }
-      .card{background:#fff; border:1px solid #eee; border-radius:12px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.05)}
-      .form-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px }
-      @media(max-width:700px){ .form-grid{ grid-template-columns: 1fr } }
-      label{display:block; font-weight:700; margin:8px 0 6px}
-      input, textarea{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd}
-      select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff}
-      button{padding:10px 14px; border-radius:10px; border:0; background:#e01f2d; color:#fff; font-weight:800; cursor:pointer}
-      table{width:100%; border-collapse:collapse; overflow:auto; display:block}
-      th, td{border-bottom:1px solid #eee; padding:8px 6px; text-align:start}
-      .muted{color:#666}
-      .actions{display:flex; gap:8px}
-      .pill{display:inline-block; padding:4px 8px; border-radius:999px; background:#f7d9bf; color:#b31422; font-weight:800; font-size:12px}
-      .error{color:#b31422}
-      .ok{color:#0a7a3d}
-    </style>
-  </head>
-  <body>
-    <header>
-      <b>Master Cake — Admin</b>
-      <div class="actions">
-        <button id="btnLogout" style="background:#111">Logout</button>
-        <a href="/" target="_blank" style="color:#fff; text-decoration:none"><button style="background:#b31422">View Site</button></a>
-      </div>
-    </header>
-    <main>
-      <div class="row">
-        <section class="card">
-          <h3>Menu Items</h3>
-          <div class="muted">Select a section to view and edit items. Upload images first, then attach filenames to items.</div>
-          <label>Section</label>
-          <select id="sectionSelect"></select>
-          <div id="itemsTable"></div>
-          <div class="actions" style="margin-top:10px">
-            <button id="btnLoadSelected" style="background:#111">Load selected</button>
-            <button id="btnDeleteSelected" style="background:#b31422">Delete selected</button>
-            <span id="tableMsg" class="muted"></span>
-          </div>
-        </section>
-        <aside class="card">
-          <h3>Upload Images</h3>
-          <label>Target Section</label>
-          <select id="uploadSection"></select>
-          <label>Choose images</label>
-          <input id="fileInput" type="file" multiple accept="image/*" />
-          <button id="btnUpload">Upload</button>
-          <div id="uploadMsg" class="muted"></div>
-        </aside>
-      </div>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Master Cake Admin — Dashboard</title>
+  <link rel="icon" href="../Logo.png">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-      <section class="card">
-        <h3>Add / Edit Item</h3>
-        <div class="form-grid">
-          <div>
-            <label>Section</label>
-            <select id="formSection"></select>
-            <label>Item ID</label>
-            <input id="formId" placeholder="e.g. iced-spanish-latte" />
-            <label>Arabic Name</label>
-            <input id="formArName" />
-            <label>English Name</label>
-            <input id="formEnName" />
-          </div>
-          <div>
-            <label>Arabic Description <button type="button" id="btnSuggest" style="float:inline-end;background:#0a7a3d">Suggest with AI</button></label>
-            <textarea id="formDescAr" rows="4"></textarea>
-            <label>English Description</label>
-            <textarea id="formDescEn" rows="4"></textarea>
-          </div>
-        </div>
-        <div class="form-grid">
-          <div>
-            <label>Price</label>
-            <input id="formPrice" placeholder="e.g. 3.50" />
-          </div>
-          <div>
-            <label>Badge (e.g. NEW, ★)</label>
-            <input id="formBadge" placeholder="optional" />
-          </div>
-        </div>
-        <label>Images (comma-separated filenames)</label>
-        <input id="formImages" placeholder="e.g. iced-spanish-latte-1.jpg, iced-spanish-latte-2.jpg" />
-        <div class="actions" style="margin-top:10px">
-          <button id="btnSave">Save Item</button>
-          <div id="saveMsg" class="muted"></div>
-        </div>
-      </section>
-    </main>
+    :root {
+      --primary: #e01f2d;
+      --primary-dark: #b31422;
+      --secondary: #0a7a3d;
+      --bg-main: #fafbfc;
+      --bg-card: #ffffff;
+      --text-primary: #1a1a1a;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --border: #e5e7eb;
+      --border-light: #f3f4f6;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 32px;
+    }
 
-    <script>
-      const SECTIONS = ['cold_drinks','hot_drinks','sweets','argillies','ice_cream'];
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
 
-      async function api(path, opts){
-        const res = await fetch(path, opts);
-        if(!res.ok){ throw new Error((await res.text())||'Request failed'); }
-        return res.json();
+    /* Header */
+    .header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--spacing-md);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .nav-tabs-content {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto;
+      min-width: max-content;
+    }
+
+    .nav-tab {
+      padding: var(--spacing-md) var(--spacing-lg);
+      border: none;
+      background: none;
+      color: var(--text-secondary);
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-primary);
+      background: var(--border-light);
+    }
+
+    .nav-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* Main Content */
+    .main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--spacing-lg) var(--spacing-md);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .card-header {
+      padding: var(--spacing-lg) var(--spacing-lg) var(--spacing-md);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .card-description {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .card-content {
+      padding: var(--spacing-lg);
+    }
+
+    .card-footer {
+      padding: var(--spacing-md) var(--spacing-lg);
+      background: var(--border-light);
+      border-top: 1px solid var(--border);
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .form-grid {
+      display: grid;
+      gap: var(--spacing-md);
+      grid-template-columns: 1fr;
+    }
+
+    .form-row {
+      display: grid;
+      gap: var(--spacing-md);
+      grid-template-columns: 1fr;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: var(--spacing-xs);
+      color: var(--text-primary);
+    }
+
+    .label-with-button {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-xs);
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 16px;
+      transition: all 0.2s ease;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(224, 31, 45, 0.1);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      padding: 12px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+      font-size: 0.875rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-secondary {
+      background: var(--text-secondary);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: var(--text-primary);
+    }
+
+    .btn-success {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #065a2e;
+    }
+
+    .btn-danger {
+      background: var(--primary-dark);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #8b0f1a;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      background: var(--border-light);
+      color: var(--text-primary);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+    }
+
+    /* Section Selector */
+    .section-selector {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .section-btn {
+      padding: var(--spacing-md);
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: capitalize;
+    }
+
+    .section-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .section-btn.active {
+      border-color: var(--primary);
+      background: rgba(224, 31, 45, 0.05);
+      color: var(--primary);
+    }
+
+    /* Items Grid */
+    .items-grid {
+      display: grid;
+      gap: var(--spacing-md);
+      grid-template-columns: 1fr;
+    }
+
+    .item-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-md);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .item-card:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .item-card.selected {
+      border-color: var(--primary);
+      background: rgba(224, 31, 45, 0.02);
+      box-shadow: var(--shadow-md);
+    }
+
+    .item-header {
+      display: flex;
+      justify-content: between;
+      align-items: flex-start;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .item-id {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.875rem;
+      flex: 1;
+    }
+
+    .item-price {
+      background: var(--border-light);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      color: var(--secondary);
+    }
+
+    .item-names {
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .item-name {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .item-name.ar {
+      direction: rtl;
+      text-align: right;
+    }
+
+    .item-images {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Messages */
+    .message {
+      padding: var(--spacing-md);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      margin-top: var(--spacing-md);
+    }
+
+    .message.success {
+      background: rgba(10, 122, 61, 0.1);
+      color: var(--secondary);
+      border: 1px solid rgba(10, 122, 61, 0.2);
+    }
+
+    .message.error {
+      background: rgba(179, 20, 34, 0.1);
+      color: var(--primary-dark);
+      border: 1px solid rgba(179, 20, 34, 0.2);
+    }
+
+    .message.info {
+      background: rgba(107, 114, 128, 0.1);
+      color: var(--text-secondary);
+      border: 1px solid rgba(107, 114, 128, 0.2);
+    }
+
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-xl);
+      text-align: center;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .upload-zone:hover {
+      border-color: var(--primary);
+      background: rgba(224, 31, 45, 0.02);
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--primary);
+      background: rgba(224, 31, 45, 0.05);
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      gap: var(--spacing-md);
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--spacing-lg);
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: var(--spacing-xs);
+    }
+
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Responsive Design */
+    @media (min-width: 640px) {
+      .form-row {
+        grid-template-columns: 1fr 1fr;
       }
+      
+      .items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      }
+    }
 
-      async function init(){
+    @media (min-width: 768px) {
+      .main {
+        padding: var(--spacing-xl) var(--spacing-lg);
+      }
+      
+      .form-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .header-content {
+        padding: var(--spacing-lg) var(--spacing-xl);
+      }
+      
+      .main {
+        padding: var(--spacing-xl);
+      }
+    }
+
+    /* Loading States */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+      position: relative;
+    }
+
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      margin: -10px 0 0 -10px;
+      border: 2px solid var(--border);
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Utilities */
+    .hidden { display: none; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .mt-4 { margin-top: var(--spacing-md); }
+    .mb-4 { margin-bottom: var(--spacing-md); }
+    .empty-state {
+      text-align: center;
+      padding: var(--spacing-xl);
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        🧁 Master Cake Admin
+      </div>
+      <div class="header-actions">
+        <a href="/" target="_blank" class="btn btn-outline">View Site</a>
+        <button id="btnLogout" class="btn btn-secondary">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <div class="nav-tabs-content">
+      <button class="nav-tab active" data-tab="overview">📊 Overview</button>
+      <button class="nav-tab" data-tab="items">📋 Menu Items</button>
+      <button class="nav-tab" data-tab="editor">✏️ Item Editor</button>
+      <button class="nav-tab" data-tab="upload">📁 Upload Images</button>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- Overview Tab -->
+    <div class="tab-content active" id="overview">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-number" id="totalItems">0</div>
+          <div class="stat-label">Total Items</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="totalSections">5</div>
+          <div class="stat-label">Sections</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="recentUploads">0</div>
+          <div class="stat-label">Recent Uploads</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Quick Actions</h2>
+          <p class="card-description">Common tasks to manage your menu</p>
+        </div>
+        <div class="card-content">
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="switchTab('items')">📋 Manage Items</button>
+            <button class="btn btn-success" onclick="switchTab('editor')">✏️ Add New Item</button>
+            <button class="btn btn-secondary" onclick="switchTab('upload')">📁 Upload Images</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Menu Items Tab -->
+    <div class="tab-content" id="items">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Menu Items</h2>
+          <p class="card-description">Select a section to view and manage items</p>
+        </div>
+        <div class="card-content">
+          <div class="section-selector">
+            <button class="section-btn active" data-section="cold_drinks">Cold Drinks</button>
+            <button class="section-btn" data-section="hot_drinks">Hot Drinks</button>
+            <button class="section-btn" data-section="sweets">Sweets</button>
+            <button class="section-btn" data-section="argillies">Argillies</button>
+            <button class="section-btn" data-section="ice_cream">Ice Cream</button>
+          </div>
+
+          <div id="itemsContainer">
+            <div class="items-grid" id="itemsGrid"></div>
+            <div class="empty-state hidden" id="emptyState">
+              <p>No items found in this section</p>
+              <button class="btn btn-primary mt-4" onclick="switchTab('editor')">Add First Item</button>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="btn-group">
+            <button id="btnLoadSelected" class="btn btn-primary">Edit Selected</button>
+            <button id="btnDeleteSelected" class="btn btn-danger">Delete Selected</button>
+          </div>
+          <div id="tableMsg" class="message hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Item Editor Tab -->
+    <div class="tab-content" id="editor">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Add / Edit Item</h2>
+          <p class="card-description">Create new items or edit existing ones</p>
+        </div>
+        <div class="card-content">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Section</label>
+              <select id="formSection">
+                <option value="cold_drinks">Cold Drinks</option>
+                <option value="hot_drinks">Hot Drinks</option>
+                <option value="sweets">Sweets</option>
+                <option value="argillies">Argillies</option>
+                <option value="ice_cream">Ice Cream</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Item ID</label>
+              <input id="formId" placeholder="e.g. iced-spanish-latte" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Arabic Name</label>
+              <input id="formArName" dir="rtl" />
+            </div>
+            <div class="form-group">
+              <label>English Name</label>
+              <input id="formEnName" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="label-with-button">
+              <label>Arabic Description</label>
+              <button id="btnSuggest" class="btn btn-success">🤖 AI Suggest</button>
+            </div>
+            <textarea id="formDescAr" dir="rtl" placeholder="وصف المنتج باللغة العربية"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>English Description</label>
+            <textarea id="formDescEn" placeholder="Product description in English"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Price</label>
+              <input id="formPrice" placeholder="e.g. 3.50" />
+            </div>
+            <div class="form-group">
+              <label>Badge (Optional)</label>
+              <input id="formBadge" placeholder="e.g. NEW, ★" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Images</label>
+            <input id="formImages" placeholder="Comma-separated filenames (e.g. item1.jpg, item2.jpg)" />
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="btn-group">
+            <button id="btnSave" class="btn btn-primary">💾 Save Item</button>
+            <button id="btnClearForm" class="btn btn-outline">🗑️ Clear Form</button>
+          </div>
+          <div id="saveMsg" class="message hidden"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Images Tab -->
+    <div class="tab-content" id="upload">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Upload Images</h2>
+          <p class="card-description">Upload images for your menu items</p>
+        </div>
+        <div class="card-content">
+          <div class="form-group">
+            <label>Target Section</label>
+            <select id="uploadSection">
+              <option value="cold_drinks">Cold Drinks</option>
+              <option value="hot_drinks">Hot Drinks</option>
+              <option value="sweets">Sweets</option>
+              <option value="argillies">Argillies</option>
+              <option value="ice_cream">Ice Cream</option>
+            </select>
+          </div>
+
+          <div class="upload-zone" id="uploadZone">
+            <div style="margin-bottom: 16px; font-size: 2rem;">📁</div>
+            <div style="font-weight: 500; margin-bottom: 8px;">Click to select images or drag & drop</div>
+            <div style="font-size: 0.875rem; color: var(--text-muted);">Supports: JPG, PNG, GIF (Max 10MB each)</div>
+            <input id="fileInput" type="file" multiple accept="image/*" style="display: none;" />
+          </div>
+
+          <div id="selectedFiles" class="mt-4 hidden">
+            <h4 style="margin-bottom: 8px;">Selected Files:</h4>
+            <div id="filesList"></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="btn-group">
+            <button id="btnUpload" class="btn btn-primary">📤 Upload Images</button>
+            <button id="btnClearFiles" class="btn btn-outline">Clear Selection</button>
+          </div>
+          <div id="uploadMsg" class="message hidden"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SECTIONS = ['cold_drinks','hot_drinks','sweets','argillies','ice_cream'];
+    let currentManifest = {};
+    let currentSection = 'cold_drinks';
+    let selectedItemId = null;
+
+    // API helper
+    async function api(path, opts = {}) {
+      const res = await fetch(path, opts);
+      if (!res.ok) {
+        throw new Error((await res.text()) || 'Request failed');
+      }
+      return res.json();
+    }
+
+    // Show message
+    function showMessage(elementId, message, type = 'info') {
+      const el = document.getElementById(elementId);
+      el.textContent = message;
+      el.className = `message ${type}`;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 5000);
+    }
+
+    // Tab switching
+    function switchTab(tabName) {
+      // Update nav tabs
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+      });
+      
+      // Update content
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === tabName);
+      });
+    }
+
+    // Initialize app
+    async function init() {
+      try {
         // Check auth
-        const ok = await fetch('/api/admin/check');
-        if(!ok.ok){ location.href='/admin/'; return; }
-
-        // Fill selects
-        for(const id of ['sectionSelect','uploadSection','formSection']){
-          const s = document.getElementById(id);
-          SECTIONS.forEach(sec=>{ const o=document.createElement('option'); o.value=sec; o.textContent=sec; s.appendChild(o); });
+        const authCheck = await fetch('/api/admin/check');
+        if (!authCheck.ok) {
+          location.href = '/admin/';
+          return;
         }
 
-        // Load current manifest
-        const manifest = await api('/api/admin/manifest');
-        renderItems(manifest, document.getElementById('sectionSelect').value);
+        // Load manifest
+        currentManifest = await api('/api/admin/manifest');
+        updateOverviewStats();
+        renderItems();
 
-        document.getElementById('sectionSelect').addEventListener('change', ()=>{
-          renderItems(manifest, document.getElementById('sectionSelect').value);
-        });
+        // Setup event listeners
+        setupEventListeners();
 
-        document.getElementById('btnUpload').addEventListener('click', async ()=>{
-          const files = document.getElementById('fileInput').files;
-          const section = document.getElementById('uploadSection').value;
-          if(!files.length) return;
-          const fd = new FormData();
-          fd.append('section', section);
-          Array.from(files).forEach(f=> fd.append('files', f));
-          const res = await fetch('/api/admin/upload', { method:'POST', body: fd });
-          const txt = await res.text();
-          document.getElementById('uploadMsg').textContent = res.ok ? 'Uploaded: '+txt : 'Upload failed: '+txt;
-        });
+      } catch (error) {
+        console.error('Initialization failed:', error);
+        showMessage('saveMsg', 'Failed to initialize dashboard', 'error');
+      }
+    }
 
-        document.getElementById('btnSave').addEventListener('click', async ()=>{
-          const section = document.getElementById('formSection').value;
-          const item = {
-            id: document.getElementById('formId').value.trim(),
-            arName: document.getElementById('formArName').value.trim(),
-            enName: document.getElementById('formEnName').value.trim(),
-            descriptionAr: document.getElementById('formDescAr').value.trim(),
-            descriptionEn: document.getElementById('formDescEn').value.trim(),
-            price: document.getElementById('formPrice').value.trim(),
-            badge: document.getElementById('formBadge').value.trim(),
-            images: document.getElementById('formImages').value.split(',').map(s=>s.trim()).filter(Boolean)
-          };
-          try{
-            const result = await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ section, item }) });
-            document.getElementById('saveMsg').textContent = 'Saved ✔';
-          }catch(e){
-            document.getElementById('saveMsg').textContent = 'Error: '+e.message;
-          }
-        });
+    function setupEventListeners() {
+      // Navigation tabs
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+      });
 
-        document.getElementById('btnSuggest').addEventListener('click', async ()=>{
-          const name = document.getElementById('formArName').value || document.getElementById('formEnName').value || document.getElementById('formId').value;
-          const section = document.getElementById('formSection').value;
-          if(!name){ document.getElementById('saveMsg').textContent = 'Enter item name first to use AI'; return; }
-          const old = document.getElementById('saveMsg').textContent;
-          document.getElementById('saveMsg').textContent = 'AI is writing…';
-          try{
-            const r = await fetch('/api/ai/suggest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, section }) });
-            const d = await r.json();
-            if(r.ok){
-              if(d.arName) document.getElementById('formArName').value = d.arName;
-              if(d.enName) document.getElementById('formEnName').value = d.enName;
-              if(d.ar) document.getElementById('formDescAr').value = d.ar;
-              if(d.en) document.getElementById('formDescEn').value = d.en;
-              document.getElementById('saveMsg').textContent = 'Descriptions suggested ✔';
-            } else {
-              document.getElementById('saveMsg').textContent = d.error || 'AI error';
-            }
-          }catch(e){
-            document.getElementById('saveMsg').textContent = 'AI request failed';
-          }
+      // Section selector
+      document.querySelectorAll('.section-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.section-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentSection = btn.dataset.section;
+          renderItems();
         });
+      });
 
-        document.getElementById('btnLoadSelected').addEventListener('click', ()=>{
-          const sec = document.getElementById('sectionSelect').value;
-          const id = selectedId;
-          if(!id){ document.getElementById('tableMsg').textContent = 'Select an item row first'; return; }
-          const it = currentItems.find(i=>i.id===id);
-          if(!it){ document.getElementById('tableMsg').textContent = 'Item not found'; return; }
-          document.getElementById('formSection').value = sec;
-          document.getElementById('formId').value = it.id || '';
-          document.getElementById('formArName').value = it.arName || '';
-          document.getElementById('formEnName').value = it.enName || '';
-          document.getElementById('formDescAr').value = it.descriptionAr || '';
-          document.getElementById('formDescEn').value = it.descriptionEn || '';
-          document.getElementById('formPrice').value = it.price || '';
-          document.getElementById('formBadge').value = it.badge || '';
-          document.getElementById('formImages').value = (it.images||[]).join(', ');
-          document.getElementById('tableMsg').textContent = 'Loaded into form';
-        });
+      // Upload zone
+      const uploadZone = document.getElementById('uploadZone');
+      const fileInput = document.getElementById('fileInput');
 
-        document.getElementById('btnDeleteSelected').addEventListener('click', async ()=>{
-          if(!selectedId){ document.getElementById('tableMsg').textContent = 'Select an item row first'; return; }
-          const sec = document.getElementById('sectionSelect').value;
-          try{
-            await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ section: sec, item: { id: selectedId, _delete: true } }) });
-            document.getElementById('tableMsg').textContent = 'Deleted ✔ — refresh the page';
-          }catch(e){
-            document.getElementById('tableMsg').textContent = 'Delete failed: '+e.message;
-          }
-        });
+      uploadZone.addEventListener('click', () => fileInput.click());
+      
+      uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+      });
 
-        document.getElementById('btnLogout').addEventListener('click', async ()=>{
-          await fetch('/api/admin/logout', { method:'POST' });
-          location.href='/admin/';
-        });
+      uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+      });
+
+      uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        fileInput.files = e.dataTransfer.files;
+        updateSelectedFiles();
+      });
+
+      fileInput.addEventListener('change', updateSelectedFiles);
+
+      // Form buttons
+      document.getElementById('btnSave').addEventListener('click', saveItem);
+      document.getElementById('btnSuggest').addEventListener('click', suggestWithAI);
+      document.getElementById('btnClearForm').addEventListener('click', clearForm);
+      document.getElementById('btnUpload').addEventListener('click', uploadImages);
+      document.getElementById('btnClearFiles').addEventListener('click', clearFiles);
+      document.getElementById('btnLoadSelected').addEventListener('click', loadSelectedItem);
+      document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelectedItem);
+      document.getElementById('btnLogout').addEventListener('click', logout);
+    }
+
+    function updateOverviewStats() {
+      let totalItems = 0;
+      Object.values(currentManifest.sections || {}).forEach(section => {
+        totalItems += (section.items || []).length;
+      });
+      document.getElementById('totalItems').textContent = totalItems;
+    }
+
+    function renderItems() {
+      const container = document.getElementById('itemsGrid');
+      const emptyState = document.getElementById('emptyState');
+      const items = currentManifest.sections?.[currentSection]?.items || [];
+
+      if (items.length === 0) {
+        container.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
       }
 
-      let selectedId = null;
-      let currentItems = [];
-      function renderItems(manifest, section){
-        const container = document.getElementById('itemsTable');
-        currentItems = manifest.sections?.[section]?.items || [];
-        const rows = currentItems.map(it=>`<tr data-id="${it.id}"><td>${it.id}</td><td>${it.arName||''}</td><td>${it.enName||''}</td><td class='muted'>${(it.images||[]).join(', ')}</td><td>${it.price||''}</td></tr>`).join('');
-        container.innerHTML = `<table><thead><tr><th>ID</th><th>AR</th><th>EN</th><th>Images</th><th>Price</th></tr></thead><tbody>${rows}</tbody></table>`;
-        container.querySelectorAll('tbody tr').forEach(tr=>{
-          tr.addEventListener('click', ()=>{
-            container.querySelectorAll('tbody tr').forEach(r=> r.style.background='');
-            tr.style.background = '#fff1ea';
-            selectedId = tr.getAttribute('data-id');
-          });
+      container.classList.remove('hidden');
+      emptyState.classList.add('hidden');
+
+      container.innerHTML = items.map(item => `
+        <div class="item-card" data-id="${item.id}">
+          <div class="item-header">
+            <div class="item-id">${item.id}</div>
+            ${item.price ? `<div class="item-price">$${item.price}</div>` : ''}
+          </div>
+          <div class="item-names">
+            ${item.arName ? `<div class="item-name ar">${item.arName}</div>` : ''}
+            ${item.enName ? `<div class="item-name">${item.enName}</div>` : ''}
+          </div>
+          ${item.images?.length ? `<div class="item-images">📷 ${item.images.join(', ')}</div>` : ''}
+        </div>
+      `).join('');
+
+      // Add click handlers
+      container.querySelectorAll('.item-card').forEach(card => {
+        card.addEventListener('click', () => {
+          container.querySelectorAll('.item-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedItemId = card.dataset.id;
         });
+      });
+    }
+
+    function updateSelectedFiles() {
+      const files = document.getElementById('fileInput').files;
+      const container = document.getElementById('selectedFiles');
+      const list = document.getElementById('filesList');
+
+      if (files.length === 0) {
+        container.classList.add('hidden');
+        return;
       }
 
-      init();
-    </script>
-  </body>
-  </html>
+      container.classList.remove('hidden');
+      list.innerHTML = Array.from(files).map(file => `
+        <div style="padding: 8px; background: var(--border-light); border-radius: 6px; margin-bottom: 4px; font-size: 0.875rem;">
+          📷 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)
+        </div>
+      `).join('');
+    }
+
+    async function saveItem() {
+      const saveBtn = document.getElementById('btnSave');
+      const originalText = saveBtn.textContent;
+      
+      try {
+        saveBtn.textContent = 'Saving...';
+        saveBtn.disabled = true;
+
+        const section = document.getElementById('formSection').value;
+        const item = {
+          id: document.getElementById('formId').value.trim(),
+          arName: document.getElementById('formArName').value.trim(),
+          enName: document.getElementById('formEnName').value.trim(),
+          descriptionAr: document.getElementById('formDescAr').value.trim(),
+          descriptionEn: document.getElementById('formDescEn').value.trim(),
+          price: document.getElementById('formPrice').value.trim(),
+          badge: document.getElementById('formBadge').value.trim(),
+          images: document.getElementById('formImages').value
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean)
+        };
+
+        if (!item.id) {
+          throw new Error('Item ID is required');
+        }
+
+        await api('/api/admin/save-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ section, item })
+        });
+
+        // Refresh data
+        currentManifest = await api('/api/admin/manifest');
+        updateOverviewStats();
+        renderItems();
+
+        showMessage('saveMsg', '✅ Item saved successfully!', 'success');
+
+      } catch (error) {
+        showMessage('saveMsg', `❌ Error: ${error.message}`, 'error');
+      } finally {
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+      }
+    }
+
+    async function suggestWithAI() {
+      const suggestBtn = document.getElementById('btnSuggest');
+      const originalText = suggestBtn.textContent;
+      
+      try {
+        const name = document.getElementById('formArName').value || 
+                    document.getElementById('formEnName').value || 
+                    document.getElementById('formId').value;
+        const section = document.getElementById('formSection').value;
+
+        if (!name) {
+          showMessage('saveMsg', '❌ Enter item name first to use AI', 'error');
+          return;
+        }
+
+        suggestBtn.textContent = '🤖 AI Working...';
+        suggestBtn.disabled = true;
+
+        const response = await fetch('/api/ai/suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, section })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          if (data.arName) document.getElementById('formArName').value = data.arName;
+          if (data.enName) document.getElementById('formEnName').value = data.enName;
+          if (data.ar) document.getElementById('formDescAr').value = data.ar;
+          if (data.en) document.getElementById('formDescEn').value = data.en;
+          showMessage('saveMsg', '✅ AI suggestions applied!', 'success');
+        } else {
+          throw new Error(data.error || 'AI request failed');
+        }
+
+      } catch (error) {
+        showMessage('saveMsg', `❌ AI Error: ${error.message}`, 'error');
+      } finally {
+        suggestBtn.textContent = originalText;
+        suggestBtn.disabled = false;
+      }
+    }
+
+    function clearForm() {
+      document.getElementById('formId').value = '';
+      document.getElementById('formArName').value = '';
+      document.getElementById('formEnName').value = '';
+      document.getElementById('formDescAr').value = '';
+      document.getElementById('formDescEn').value = '';
+      document.getElementById('formPrice').value = '';
+      document.getElementById('formBadge').value = '';
+      document.getElementById('formImages').value = '';
+      showMessage('saveMsg', 'Form cleared', 'info');
+    }
+
+    async function uploadImages() {
+      const uploadBtn = document.getElementById('btnUpload');
+      const originalText = uploadBtn.textContent;
+      
+      try {
+        const files = document.getElementById('fileInput').files;
+        const section = document.getElementById('uploadSection').value;
+
+        if (!files.length) {
+          showMessage('uploadMsg', '❌ Please select images first', 'error');
+          return;
+        }
+
+        uploadBtn.textContent = '📤 Uploading...';
+        uploadBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('section', section);
+        Array.from(files).forEach(file => formData.append('files', file));
+
+        const response = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.text();
+
+        if (response.ok) {
+          showMessage('uploadMsg', `✅ Uploaded: ${result}`, 'success');
+          clearFiles();
+        } else {
+          throw new Error(result);
+        }
+
+      } catch (error) {
+        showMessage('uploadMsg', `❌ Upload failed: ${error.message}`, 'error');
+      } finally {
+        uploadBtn.textContent = originalText;
+        uploadBtn.disabled = false;
+      }
+    }
+
+    function clearFiles() {
+      document.getElementById('fileInput').value = '';
+      document.getElementById('selectedFiles').classList.add('hidden');
+    }
+
+    function loadSelectedItem() {
+      if (!selectedItemId) {
+        showMessage('tableMsg', '❌ Select an item first', 'error');
+        return;
+      }
+
+      const items = currentManifest.sections?.[currentSection]?.items || [];
+      const item = items.find(i => i.id === selectedItemId);
+
+      if (!item) {
+        showMessage('tableMsg', '❌ Item not found', 'error');
+        return;
+      }
+
+      // Switch to editor tab
+      switchTab('editor');
+
+      // Fill form
+      document.getElementById('formSection').value = currentSection;
+      document.getElementById('formId').value = item.id || '';
+      document.getElementById('formArName').value = item.arName || '';
+      document.getElementById('formEnName').value = item.enName || '';
+      document.getElementById('formDescAr').value = item.descriptionAr || '';
+      document.getElementById('formDescEn').value = item.descriptionEn || '';
+      document.getElementById('formPrice').value = item.price || '';
+      document.getElementById('formBadge').value = item.badge || '';
+      document.getElementById('formImages').value = (item.images || []).join(', ');
+
+      showMessage('saveMsg', '✅ Item loaded for editing', 'success');
+    }
+
+    async function deleteSelectedItem() {
+      if (!selectedItemId) {
+        showMessage('tableMsg', '❌ Select an item first', 'error');
+        return;
+      }
+
+      if (!confirm('Are you sure you want to delete this item?')) {
+        return;
+      }
+
+      try {
+        await api('/api/admin/save-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            section: currentSection,
+            item: { id: selectedItemId, _delete: true }
+          })
+        });
+
+        // Refresh data
+        currentManifest = await api('/api/admin/manifest');
+        updateOverviewStats();
+        renderItems();
+        selectedItemId = null;
+
+        showMessage('tableMsg', '✅ Item deleted successfully', 'success');
+
+      } catch (error) {
+        showMessage('tableMsg', `❌ Delete failed: ${error.message}`, 'error');
+      }
+    }
+
+    async function logout() {
+      try {
+        await fetch('/api/admin/logout', { method: 'POST' });
+        location.href = '/admin/';
+      } catch (error) {
+        console.error('Logout failed:', error);
+        location.href = '/admin/';
+      }
+    }
+
+    // Initialize app when page loads
+    init();
+  </script>
+</body>
+</html>
