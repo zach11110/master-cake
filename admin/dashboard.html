@@ -11,12 +11,13 @@
       main{padding:16px; display:grid; gap:16px}
       .row{display:grid; grid-template-columns: 3fr 2fr; gap:16px}
       @media(max-width:900px){ .row{ grid-template-columns: 1fr; } }
+      @media(max-width:560px){ input, textarea, select, button { font-size:16px } }
       .card{background:#fff; border:1px solid #eee; border-radius:12px; padding:14px; box-shadow:0 8px 20px rgba(0,0,0,.05)}
       label{display:block; font-weight:700; margin:8px 0 6px}
       input, textarea{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd}
       select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #ddd; background:#fff}
       button{padding:10px 14px; border-radius:10px; border:0; background:#e01f2d; color:#fff; font-weight:800; cursor:pointer}
-      table{width:100%; border-collapse:collapse}
+      table{width:100%; border-collapse:collapse; overflow:auto; display:block}
       th, td{border-bottom:1px solid #eee; padding:8px 6px; text-align:start}
       .muted{color:#666}
       .actions{display:flex; gap:8px}

@@ -118,6 +118,9 @@ body {
 .item h3 { margin: 4px 0 6px; font-size: 16px; color: var(--ink); }
 .item p { margin: 0; color: #6a4a4c; font-size: 13px; }
 .item .pill { margin-top: 10px; display: inline-block; background: var(--brand-cream-2); color: var(--brand-red-ink); border-radius: 999px; padding: 6px 10px; font-weight: 700; font-size: 12px; }
+.pill-group { display:flex; gap:8px; flex-wrap: wrap; margin-top:8px; }
+.pill-badge { background: var(--brand-cream-2); }
+.pill-price { background: #ffffff; border: 1px solid rgba(224,31,45,.2); }
 
 /* Footer */
 .footer { color: #ffe9de; padding: 16px 0 30px; }
