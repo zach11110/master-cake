@@ -39,6 +39,15 @@
           ],
           "badge": "جديد",
           "price": "12500"
+        },
+        {
+          "id": "green tea",
+          "arName": "شاي أخضر",
+          "enName": "Green Tea",
+          "descriptionAr": "شراب منعش بطعم حلو دقيق ونكهة نباتية خفيفة. يقدم دافئًا.",
+          "descriptionEn": "A subtly sweet and refreshing brew, with a smooth, slightly vegetal taste.  Served warm.",
+          "price": "20000",
+          "badge": "جديد"
         }
       ]
     },
