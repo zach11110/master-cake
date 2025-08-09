@@ -52,6 +52,17 @@
           "descriptionAr": "طبقة بسكويت زبدية وكريمة جبن.",
           "descriptionEn": "Buttery biscuit crust with cream cheese.",
           "images": []
+        },
+        {
+          "id": "Chocolate_Crepe",
+          "arName": "كريب الشوكولا",
+          "enName": "Chocolate Crepe",
+          "descriptionAr": "كريب دافئ رقيق محشو بشوكولاتة غنية ذائبة. استمتع بقوامه الناعم ونكهة الشوكولاتة الحلوة.",
+          "descriptionEn": "A warm, thin crepe filled with rich, melted chocolate.  Enjoy its delicate texture and sweet chocolate flavor.",
+          "images": [
+            "crepe.jpg"
+          ],
+          "price": "15000"
         }
       ]
     },
