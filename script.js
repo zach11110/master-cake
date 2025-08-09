@@ -30,6 +30,24 @@ const BRAND_FALLBACK = {
 
 const SECTION_ORDER = ['cold_drinks', 'hot_drinks', 'sweets', 'argillies', 'ice_cream'];
 
+// Curated notes per section (AR/EN)
+const SECTION_NOTES = {
+  ar: {
+    cold_drinks: 'برودة منعشة لكل مزاج — ارتشف الانتعاش.',
+    hot_drinks: 'دفء يوقظ الحواس — كل رشفة حكاية.',
+    sweets: 'حلوى تصنع البهجة — لقمة تذوب في الفم.',
+    argillies: 'أجواء هادئة ونكهات أصيلة — اختَر مزاجك.',
+    ice_cream: 'متعة بوظة كريمية — نكهات تحبها.'
+  },
+  en: {
+    cold_drinks: 'Chilled refreshment for every mood.',
+    hot_drinks: 'Warm sips that awaken the senses.',
+    sweets: 'Treats that spark joy.',
+    argillies: 'Laid‑back vibes with authentic flavors.',
+    ice_cream: 'Creamy scoops of happiness.'
+  }
+};
+
 // Generate some demo items per section
 function buildDemoItems(label) {
   return Array.from({ length: 6 }).map((_, i) => ({
@@ -159,7 +177,7 @@ async function renderUI(lang) {
         <span class="badge">${idx + 1}</span>
         <h2>${t.sections[key]}</h2>
       </div>
-      <p class="section-note">${(lang === 'ar' ? BRAND_FALLBACK.ar.note : BRAND_FALLBACK.en.note)}</p>
+      <p class="section-note">${SECTION_NOTES[lang]?.[key] || (lang === 'ar' ? BRAND_FALLBACK.ar.note : BRAND_FALLBACK.en.note)}</p>
     `;
 
     const itemsWrap = document.createElement('div');
