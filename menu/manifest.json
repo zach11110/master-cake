@@ -14,12 +14,13 @@
           "id": "iced-americano",
           "arName": "ايسد امريكانو",
           "enName": "Iced Americano",
-          "descriptionAr": "",
-          "descriptionEn": "",
+          "descriptionAr": "مشروب بارد منعش، قوي وجريء بنكهة نقية منعشة. مثالي ليوم حار.",
+          "descriptionEn": "A refreshingly cold brew, strong and bold with a crisp, clean finish.  Perfect for a hot day.",
           "images": [
             "iced-americano1.jpg"
           ],
-          "price": "350"
+          "price": "25000",
+          "badge": "جديد"
         }
       ]
     },
