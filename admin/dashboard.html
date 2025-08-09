@@ -170,6 +170,8 @@
             const r = await fetch('/api/ai/suggest', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, section }) });
             const d = await r.json();
             if(r.ok){
+              if(d.arName) document.getElementById('formArName').value = d.arName;
+              if(d.enName) document.getElementById('formEnName').value = d.enName;
               if(d.ar) document.getElementById('formDescAr').value = d.ar;
               if(d.en) document.getElementById('formDescEn').value = d.en;
               document.getElementById('saveMsg').textContent = 'Descriptions suggested ✔';

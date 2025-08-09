@@ -15,16 +15,30 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
 
   try {
-    const prompt = `You are a concise menu copywriter. Write mouthwatering yet realistic item descriptions.
+    const prompt = `You are a bilingual menu copywriter.
+Return STRICT JSON only with this schema:
+{
+  "enName": string,    // English item name, title case
+  "arName": string,    // Arabic item name in MSA
+  "en": string,        // English description, 1–2 short sentences, max 160 chars, no emojis
+  "ar": string         // Arabic description (MSA), 1–2 short sentences, max 160 chars, no emojis
+}
+
 Item name: "${name}"
 Section: "${section || 'general'}"
-Rules:
-- Output valid JSON only with keys: ar, en
-- ar: Modern Arabic (MSA, not dialect), 1–2 short sentences, max 160 chars, no emojis
-- en: Natural English, 1–2 short sentences, max 160 chars, no emojis
-- No medical/health claims, no superlatives like "the best", no prices, no allergens unless typical
-- Focus on taste, texture, temperature, and key ingredients
-Return JSON only.`;
+Style rules:
+- Focus on taste, texture, temperature, and key ingredients; realistic and appetizing.
+- Avoid medical/health claims, superlatives like "the best", prices, or allergens unless typical.
+- Arabic must be Modern Standard Arabic (not dialect).
+
+Few-shot examples:
+Input: name="Green Tea", section="hot_drinks"
+Output: {"enName":"Green Tea","arName":"شاي أخضر","en":"A clean, gently grassy brew with a soft, soothing finish.","ar":"شاي نقي بطعم عشبي رقيق ولمسة مهدئة."}
+
+Input: name="Chocolate Milkshake", section="cold_drinks"
+Output: {"enName":"Chocolate Milkshake","arName":"ميلكشيك الشوكولاتة","en":"Thick and creamy with rich cocoa and an ice‑cold finish.","ar":"كثيف وكريمي بنكهة كاكاو غنية ونهاية باردة منعشة."}
+
+Now produce the JSON for the current item.`;
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const resp = await fetch(endpoint, {
@@ -39,15 +53,29 @@ Return JSON only.`;
     const data = await resp.json();
     const parts = data?.candidates?.[0]?.content?.parts || [];
     const text = parts.map(p => p.text).filter(Boolean).join('\n').trim();
-    let payload;
-    try { payload = JSON.parse(text); } catch { payload = null; }
+    // Try to extract a JSON object from the response
+    const match = text.match(/\{[\s\S]*\}/);
+    let payload = null;
+    if (match) {
+      try { payload = JSON.parse(match[0]); } catch {}
+    } else {
+      try { payload = JSON.parse(text); } catch {}
+    }
     if (!payload || !payload.ar || !payload.en) {
+      // Minimal fallback using name for names, generic but relevant description
       payload = {
-        ar: `${name} — وصف قصير ولذيذ يبرز النكهة والقوام بطريقة جذابة.`,
-        en: `${name} — a short, appetizing description highlighting flavor and texture.`
+        enName: name,
+        arName: name,
+        ar: `تحضير ${name} بطعم متوازن يبرز نكهته الأساسية بطريقة شهية.`,
+        en: `${name} prepared with a balanced taste that highlights its core flavor.`
       };
     }
-    res.status(200).json(payload);
+    res.status(200).json({
+      enName: payload.enName || name,
+      arName: payload.arName || name,
+      en: payload.en,
+      ar: payload.ar
+    });
   } catch (e) {
     res.status(500).json({ error: 'AI suggestion failed' });
   }
