@@ -2,14 +2,7 @@
   "version": 2,
   "builds": [
     { "src": "api/**/*.js", "use": "@vercel/node" },
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "admin/**", "use": "@vercel/static" },
-    { "src": "menu/**", "use": "@vercel/static" },
-    { "src": "*.css", "use": "@vercel/static" },
-    { "src": "*.js", "use": "@vercel/static" },
-    { "src": "Logo.png", "use": "@vercel/static" },
-    { "src": "robots.txt", "use": "@vercel/static" },
-    { "src": "sitemap.xml", "use": "@vercel/static" }
+    { "src": "**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/admin/?", "dest": "/admin/index.html" }

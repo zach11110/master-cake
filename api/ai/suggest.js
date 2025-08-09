@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -17,9 +15,6 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
 
   try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
     const prompt = `You are a concise menu copywriter. Write mouthwatering yet realistic item descriptions.
 Item name: "${name}"
 Section: "${section || 'general'}"
@@ -31,13 +26,22 @@ Rules:
 - Focus on taste, texture, temperature, and key ingredients
 Return JSON only.`;
 
-    const result = await model.generateContent({ contents: [{ role: 'user', parts: [{ text: prompt }] }] });
-    const text = result?.response?.text?.() || '';
-    const jsonMatch = text.trim();
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 256 }
+      })
+    });
+    if (!resp.ok) return res.status(500).json({ error: 'Gemini request failed' });
+    const data = await resp.json();
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    const text = parts.map(p => p.text).filter(Boolean).join('\n').trim();
     let payload;
-    try { payload = JSON.parse(jsonMatch); } catch { payload = null; }
+    try { payload = JSON.parse(text); } catch { payload = null; }
     if (!payload || !payload.ar || !payload.en) {
-      // Simple fallback
       payload = {
         ar: `${name} — وصف قصير ولذيذ يبرز النكهة والقوام بطريقة جذابة.`,
         en: `${name} — a short, appetizing description highlighting flavor and texture.`
