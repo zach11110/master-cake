@@ -181,6 +181,10 @@
       grid-template-columns: 1fr;
     }
 
+    .file-input-group{ display:flex; gap:var(--spacing-sm); align-items:center; flex-wrap:wrap }
+    .checkbox-label{ display:inline-flex; align-items:center; gap:8px; margin-top:6px; user-select:none }
+    .checkbox-label input[type="checkbox"]{ width:18px; height:18px; accent-color: var(--primary); }
+
     .form-row {
       display: grid;
       gap: var(--spacing-md);
@@ -701,10 +705,9 @@
               <input id="formImages" placeholder="Comma-separated filenames (e.g. item1.jpg, item2.jpg)" />
               <div class="file-input-group">
                 <input id="formUploadFiles" type="file" multiple accept="image/*" />
-                <button id="btnUploadForItem" class="btn">Attach Uploads</button>
+                <label class="checkbox-label"><input type="checkbox" id="autoName" checked /> Auto‑name by item ID</label>
               </div>
             </div>
-            <label class="checkbox-label"><input type="checkbox" id="autoName" checked /> Auto‑name by item ID</label>
             <div id="attachMsg" class="message hidden"></div>
           </div>
         </div>
@@ -872,15 +875,14 @@
       document.getElementById('btnLogout').addEventListener('click', logout);
 
       // Attach uploads directly to the current item
-      const attachBtn = document.getElementById('btnUploadForItem');
       const formFiles = document.getElementById('formUploadFiles');
-      if (attachBtn && formFiles) {
-        attachBtn.addEventListener('click', async () => {
+      if (formFiles) {
+        const autoAttach = async () => {
           const section = document.getElementById('formSection').value;
           const itemId = document.getElementById('formId').value.trim();
           const auto = document.getElementById('autoName')?.checked ? '1' : '0';
           if (!itemId) { showMessage('attachMsg', '❌ Enter item ID first', 'error'); return; }
-          if (!formFiles.files.length) { showMessage('attachMsg', '❌ Choose images to upload', 'error'); return; }
+          if (!formFiles.files.length) { return; }
           const fd = new FormData();
           fd.append('section', section);
           fd.append('itemId', itemId);
@@ -897,7 +899,8 @@
           } else {
             showMessage('attachMsg', '❌ Upload failed', 'error');
           }
-        });
+        };
+        formFiles.addEventListener('change', autoAttach);
       }
     }
 
