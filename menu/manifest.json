@@ -109,6 +109,19 @@
           "descriptionAr": "بوظة فستق كريمية.",
           "descriptionEn": "Creamy pistachio ice cream.",
           "images": []
+        },
+        {
+          "id": "Master cacke ice cream",
+          "arName": "آيس كريم كيكة الماستر",
+          "enName": "Master Cake Ice Cream",
+          "descriptionAr": "آيس كريم غنيّ كريميّ مع قطع من كيكة الماستر اللذيذة.  تجربة منعشة وغنية.",
+          "descriptionEn": "Rich, creamy ice cream with chunks of moist master cake.  A delightfully cool and decadent treat.",
+          "images": [
+            "master-cacke-ice-cream-1754806531109-1.jfif",
+            "master-cacke-ice-cream-1754806531632-2.jfif"
+          ],
+          "price": "15000",
+          "badge": "عرض"
         }
       ]
     }
