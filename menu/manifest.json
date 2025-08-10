@@ -81,23 +81,6 @@
         }
       ]
     },
-    "argillies": {
-      "ar": "أركيلة",
-      "en": "Argillies (Hookah)",
-      "items": [
-        {
-          "id": "mint-mix",
-          "arName": "نعناع ميكس",
-          "enName": "Mint Mix",
-          "descriptionAr": "نكهات نعناع منعشة.",
-          "descriptionEn": "Refreshing mint blends.",
-          "images": [
-            "Mazaya-nana3-1.JPG"
-          ],
-          "price": "20000"
-        }
-      ]
-    },
     "ice_cream": {
       "ar": "بوظة / آيس كريم",
       "en": "Ice Cream",
