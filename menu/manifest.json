@@ -47,7 +47,12 @@
           "descriptionAr": "شراب منعش بطعم حلو دقيق ونكهة نباتية خفيفة. يقدم دافئًا.",
           "descriptionEn": "A subtly sweet and refreshing brew, with a smooth, slightly vegetal taste.  Served warm.",
           "price": "20000",
-          "badge": "جديد"
+          "badge": "جديد",
+          "images": [
+            "green-tea-1754805969808-1.jfif",
+            "green-tea-1754805970308-2.jfif",
+            "green-tea-1754805970773-3.jpg"
+          ]
         }
       ]
     },
