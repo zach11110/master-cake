@@ -13,8 +13,8 @@ export default async function handler(req, res) {
   if (cookies.admin_session !== 'ok') return res.status(401).json({ error: 'Not authenticated' });
 
   try {
-    const { section, item } = req.body || {};
-    if(!section || !item || !item.id) return res.status(400).json({ error: 'Missing section or item id' });
+    const { section, item, newSection, sectionLabelAr, sectionLabelEn, deleteSection } = req.body || {};
+    if (!section && !newSection && !deleteSection) return res.status(400).json({ error: 'Missing section' });
 
     const repo = process.env.GITHUB_REPO; // owner/name
     const branch = process.env.GITHUB_BRANCH || 'main';
@@ -31,8 +31,36 @@ export default async function handler(req, res) {
 
     // 2) Modify with partial update (ignore empty strings/arrays)
     json.sections = json.sections || {};
-    json.sections[section] = json.sections[section] || { items: [], ar: '', en: '' };
-    const items = json.sections[section].items || [];
+
+    // Section management
+    if (deleteSection && section) {
+      delete json.sections[section];
+    }
+    if (newSection) {
+      const key = newSection.trim();
+      if (!json.sections[key]) {
+        json.sections[key] = { ar: sectionLabelAr || key, en: sectionLabelEn || key, items: [] };
+      } else {
+        // update labels if provided
+        if (sectionLabelAr) json.sections[key].ar = sectionLabelAr;
+        if (sectionLabelEn) json.sections[key].en = sectionLabelEn;
+      }
+    }
+
+    if (!item) {
+      // Only section operation
+      const newContentOnly = Buffer.from(JSON.stringify(json, null, 2)).toString('base64');
+      const putUrlOnly = `https://api.github.com/repos/${repo}/contents/menu/manifest.json`;
+      const putResOnly = await fetch(putUrlOnly, {
+        method: 'PUT',
+        headers: { Authorization: `token ${token}`, 'Content-Type': 'application/json', Accept: 'application/vnd.github+json' },
+        body: JSON.stringify({ message: `chore(admin): update sections`, content: newContentOnly, sha, branch })
+      });
+      if (!putResOnly.ok) return res.status(500).json({ error: 'Failed to commit manifest' });
+      return res.status(200).json({ ok: true });
+    }
+
+    const items = (json.sections[section] ||= { items: [], ar: '', en: '' }).items || [];
     const sanitize = (obj) => {
       const allowedKeys = ['arName','enName','descriptionAr','descriptionEn','images','price','badge'];
       const out = { id: obj.id };

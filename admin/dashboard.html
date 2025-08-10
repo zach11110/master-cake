@@ -568,6 +568,7 @@
       <button class="nav-tab" data-tab="items">📋 Menu Items</button>
       <button class="nav-tab" data-tab="editor">✏️ Item Editor</button>
       <button class="nav-tab" data-tab="upload">📁 Upload Images</button>
+      <button class="nav-tab" data-tab="sections">🗂️ Sections</button>
     </div>
   </nav>
 
@@ -605,6 +606,36 @@
       </div>
     </div>
 
+    <!-- Sections Tab -->
+    <div class="tab-content" id="sections">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Manage Sections</h2>
+          <p class="card-description">Add, rename, or remove menu sections</p>
+        </div>
+        <div class="card-content">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Existing Sections</label>
+              <div id="sectionsList"></div>
+            </div>
+            <div class="form-group">
+              <label>New Section Key (e.g. smoothies)</label>
+              <input id="secKey" placeholder="letters, numbers, underscore" />
+              <label>Arabic Label</label>
+              <input id="secAr" placeholder="العنوان بالعربية" />
+              <label>English Label</label>
+              <input id="secEn" placeholder="Title in English" />
+              <div class="btn-group" style="margin-top:8px">
+                <button id="btnAddSection" class="btn btn-primary">➕ Add / Update</button>
+                <button id="btnDeleteSection" class="btn btn-outline">🗑️ Delete</button>
+              </div>
+              <div id="secMsg" class="message hidden"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Menu Items Tab -->
     <div class="tab-content" id="items">
       <div class="card">
@@ -814,6 +845,7 @@
         currentManifest = await api('/api/admin/manifest');
         updateOverviewStats();
         renderItems();
+        renderSectionsList();
 
         // Setup event listeners
         setupEventListeners();
@@ -874,6 +906,12 @@
       document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelectedItem);
       document.getElementById('btnLogout').addEventListener('click', logout);
 
+      // Sections
+      const addBtn = document.getElementById('btnAddSection');
+      const delBtn = document.getElementById('btnDeleteSection');
+      if (addBtn) addBtn.addEventListener('click', addOrUpdateSection);
+      if (delBtn) delBtn.addEventListener('click', deleteSection);
+
       // Attach uploads directly to the current item
       const formFiles = document.getElementById('formUploadFiles');
       if (formFiles) {
@@ -910,6 +948,7 @@
         totalItems += (section.items || []).length;
       });
       document.getElementById('totalItems').textContent = totalItems;
+      document.getElementById('totalSections').textContent = Object.keys(currentManifest.sections || {}).length;
     }
 
     function renderItems() {
@@ -948,6 +987,46 @@
           selectedItemId = card.dataset.id;
         });
       });
+    }
+
+    function renderSectionsList() {
+      const box = document.getElementById('sectionsList');
+      if (!box) return;
+      const secs = currentManifest.sections || {};
+      box.innerHTML = Object.entries(secs).map(([key, val]) => `
+        <div class="form-row" style="align-items:center">
+          <div style=\"min-width:180px\"><b>${key}</b></div>
+          <div>${val.ar || ''}</div>
+          <div class=\"muted\">${val.en || ''}</div>
+        </div>
+      `).join('');
+    }
+
+    async function addOrUpdateSection() {
+      const key = document.getElementById('secKey').value.trim();
+      const ar = document.getElementById('secAr').value.trim();
+      const en = document.getElementById('secEn').value.trim();
+      if (!key) { showMessage('secMsg','❌ Enter section key','error'); return; }
+      try{
+        await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ newSection: key, sectionLabelAr: ar, sectionLabelEn: en }) });
+        currentManifest = await api('/api/admin/manifest');
+        renderSectionsList();
+        updateOverviewStats();
+        showMessage('secMsg','✅ Section added/updated','success');
+      }catch(e){ showMessage('secMsg','❌ Failed: '+e.message,'error'); }
+    }
+
+    async function deleteSection() {
+      const key = document.getElementById('secKey').value.trim();
+      if (!key) { showMessage('secMsg','❌ Enter section key','error'); return; }
+      if (!confirm('Delete this section and its items?')) return;
+      try{
+        await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ section: key, deleteSection: true }) });
+        currentManifest = await api('/api/admin/manifest');
+        renderSectionsList();
+        updateOverviewStats();
+        showMessage('secMsg','✅ Section deleted','success');
+      }catch(e){ showMessage('secMsg','❌ Failed: '+e.message,'error'); }
     }
 
     function updateSelectedFiles() {
