@@ -697,7 +697,15 @@
 
           <div class="form-group">
             <label>Images</label>
-            <input id="formImages" placeholder="Comma-separated filenames (e.g. item1.jpg, item2.jpg)" />
+            <div class="form-row">
+              <input id="formImages" placeholder="Comma-separated filenames (e.g. item1.jpg, item2.jpg)" />
+              <div class="file-input-group">
+                <input id="formUploadFiles" type="file" multiple accept="image/*" />
+                <button id="btnUploadForItem" class="btn">Attach Uploads</button>
+              </div>
+            </div>
+            <label class="checkbox-label"><input type="checkbox" id="autoName" checked /> Auto‑name by item ID</label>
+            <div id="attachMsg" class="message hidden"></div>
           </div>
         </div>
         <div class="card-footer">
@@ -862,6 +870,35 @@
       document.getElementById('btnLoadSelected').addEventListener('click', loadSelectedItem);
       document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelectedItem);
       document.getElementById('btnLogout').addEventListener('click', logout);
+
+      // Attach uploads directly to the current item
+      const attachBtn = document.getElementById('btnUploadForItem');
+      const formFiles = document.getElementById('formUploadFiles');
+      if (attachBtn && formFiles) {
+        attachBtn.addEventListener('click', async () => {
+          const section = document.getElementById('formSection').value;
+          const itemId = document.getElementById('formId').value.trim();
+          const auto = document.getElementById('autoName')?.checked ? '1' : '0';
+          if (!itemId) { showMessage('attachMsg', '❌ Enter item ID first', 'error'); return; }
+          if (!formFiles.files.length) { showMessage('attachMsg', '❌ Choose images to upload', 'error'); return; }
+          const fd = new FormData();
+          fd.append('section', section);
+          fd.append('itemId', itemId);
+          fd.append('autoname', auto);
+          Array.from(formFiles.files).forEach(f => fd.append('files', f));
+          const resp = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+          const data = await resp.json().catch(()=>null);
+          if (resp.ok && data && Array.isArray(data.saved)) {
+            const current = document.getElementById('formImages').value.split(',').map(s=>s.trim()).filter(Boolean);
+            const merged = Array.from(new Set([...current, ...data.saved]));
+            document.getElementById('formImages').value = merged.join(', ');
+            showMessage('attachMsg', `✅ Attached: ${data.saved.join(', ')}`, 'success');
+            formFiles.value = '';
+          } else {
+            showMessage('attachMsg', '❌ Upload failed', 'error');
+          }
+        });
+      }
     }
 
     function updateOverviewStats() {
