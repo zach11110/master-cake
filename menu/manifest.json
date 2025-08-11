@@ -111,7 +111,20 @@
     "argillies": {
       "ar": "اركيله",
       "en": "Hookah",
-      "items": []
+      "items": [
+        {
+          "id": "Hookah",
+          "arName": "أركيلة نعنع",
+          "enName": "Mint Hookah",
+          "descriptionAr": "استمتع بطعم النعناع المنعش والمنعش. تمتع بدخان ناعم ولذيذ.",
+          "descriptionEn": "Experience the cool, refreshing taste of pure mint.  Enjoy smooth, flavorful smoke.",
+          "images": [
+            "hookah-1754889736558-1.jpg"
+          ],
+          "price": "20000",
+          "badge": "جديد"
+        }
+      ]
     }
   }
 }
