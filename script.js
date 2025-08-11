@@ -263,6 +263,54 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('mc_lang', 'en');
     renderUI('en');
   });
+
+  // Chat widget
+  const chatFab = document.getElementById('chatFab');
+  const chatPanel = document.getElementById('chatPanel');
+  const chatBody = document.getElementById('chatBody');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+  const chatClose = document.getElementById('chatClose');
+  if (chatFab && chatPanel) {
+    const sessionId = (localStorage.getItem('mc_chat_session') || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())));
+    localStorage.setItem('mc_chat_session', sessionId);
+    const history = [];
+    const pushMsg = (role, content) => {
+      history.push({ role, content }); if (history.length > 10) history.shift();
+      const div = document.createElement('div');
+      div.className = `chat-msg ${role === 'user' ? 'chat-user' : 'chat-bot'}`;
+      div.textContent = content;
+      chatBody.appendChild(div);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    };
+    const send = async () => {
+      const text = chatInput.value.trim(); if (!text) return;
+      pushMsg('user', text); chatInput.value = '';
+      try {
+        const res = await fetch('/api/ai/menu-chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, messages: history, maxSuggestions: 3 }) });
+        const data = await res.json();
+        pushMsg('assistant', data.reply || 'تمام!');
+        // Render suggestion chips
+        if (Array.isArray(data.suggestions) && data.suggestions.length) {
+          const wrap = document.createElement('div');
+          wrap.className = 'chat-msg chat-bot';
+          wrap.innerHTML = data.suggestions.map(s => `<button class="chip" data-sec="${s.section}" data-id="${s.id}" style="margin:3px 6px 0 0">${s.arName || s.id}${s.price ? ' • ' + s.price : ''}</button>`).join('');
+          wrap.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+            const sec = btn.getAttribute('data-sec'); const id = btn.getAttribute('data-id');
+            document.getElementById(`sec-${sec}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }));
+          chatBody.appendChild(wrap); chatBody.scrollTop = chatBody.scrollHeight;
+        }
+        if (data.followUpQuestion) pushMsg('assistant', data.followUpQuestion);
+      } catch {
+        pushMsg('assistant', 'صار عندي ضغط هلق، جرب بعد شوي 🙏');
+      }
+    };
+    chatFab.addEventListener('click', () => { chatPanel.classList.add('show'); if (!history.length) pushMsg('assistant', 'أهلا فيك! خبرني بمزاجك اليوم وبقترح لك شي طيب 😋'); });
+    chatClose.addEventListener('click', () => { chatPanel.classList.remove('show'); });
+    chatSend.addEventListener('click', send);
+    chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+  }
 });
 
 // Lightbox / Gallery
