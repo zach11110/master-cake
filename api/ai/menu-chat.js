@@ -155,9 +155,16 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'GEMINI_API_KEY not set' });
 
   const digest = await buildMenuDigest();
-  const prompt = buildPrompt(digest, messages, maxSuggestions);
+  // Detect if user declines suggestions and just wants to chat
+  const recentUser = (messages || []).filter(m => m.role === 'user').slice(-3).map(m => (m.content || '').toLowerCase()).join(' \n ');
+  const decline = /(ما بدي|مابدي|لا بدي|مو حابب|مالي جوعان|مالي عطشان|ما عبالي|بس دردش|دردشة|نحكي|احكي|عن الحب|نكت)/;
+  const ordering = /(بدي|حابب|شو تشرب|اقتراح|بارد|ساخن|حلو|حلويات|آيس|قهوة|شاي|ميزانية|سعر|سموذي|موهيتو|بوظة)/;
+  const suggestAllowed = ordering.test(recentUser) && !decline.test(recentUser);
+  const prompt = buildPrompt(digest, messages, maxSuggestions, suggestAllowed);
   const raw = await callGemini(apiKey, prompt);
-  const json = coerceResponse(raw || '', digest, maxSuggestions);
+  const jsonRaw = coerceResponse(raw || '', digest, maxSuggestions);
+  if (!suggestAllowed) jsonRaw.suggestions = []; // enforce
+  const json = jsonRaw;
   res.status(200).json(json);
 }
 
