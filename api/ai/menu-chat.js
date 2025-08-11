@@ -1,9 +1,9 @@
-// Smart Professional Menu Assistant using Gemini 1.5 Flash
-// Intelligently handles both casual chat and menu suggestions
-// Tracks conversation context to avoid repetition and provide relevant responses
+// FIXED: Smart Professional Menu Assistant 
+// Now properly detects when users want to chat vs get suggestions
+// Respects user intent and stops forcing menu suggestions
 
 let MENU_CACHE = { digest: null, expiresAt: 0 };
-const RATE_BUCKET = new Map(); // key: sessionId|ip → { lastTs }
+const RATE_BUCKET = new Map();
 
 function nowMs() { return Date.now(); }
 
@@ -17,7 +17,7 @@ function rateLimit(key, minIntervalMs = 1500) {
 }
 
 async function fetchManifestFromGitHub() {
-  const repo = process.env.GITHUB_REPO; // owner/name
+  const repo = process.env.GITHUB_REPO;
   const branch = process.env.GITHUB_BRANCH || 'main';
   const token = process.env.GITHUB_TOKEN;
   if (!repo || !token) return null;
@@ -33,7 +33,6 @@ async function buildMenuDigest() {
   if (MENU_CACHE.digest && MENU_CACHE.expiresAt > nowMs()) return MENU_CACHE.digest;
   let manifest = null;
   try {
-    // Prefer GitHub (fresh), fallback to local file if needed
     manifest = await fetchManifestFromGitHub();
     if (!manifest) {
       const fs = await import('node:fs/promises');
@@ -45,6 +44,7 @@ async function buildMenuDigest() {
   } catch {
     manifest = null;
   }
+  
   const digest = { sections: {} };
   if (manifest && manifest.sections) {
     for (const [key, sec] of Object.entries(manifest.sections)) {
@@ -53,7 +53,8 @@ async function buildMenuDigest() {
         arName: it.arName,
         price: it.price || '',
         desc: (it.descriptionAr || it.descriptionEn || '').slice(0, 120),
-        badge: it.badge || ''
+        badge: it.badge || '',
+        images: it.images || []
       }));
       digest.sections[key] = { ar: sec.ar || key, en: sec.en || key, items: compactItems };
     }
@@ -62,97 +63,115 @@ async function buildMenuDigest() {
   return digest;
 }
 
-function analyzeConversationContext(messages) {
-  const userMessages = messages.filter(m => m.role === 'user').slice(-5);
-  const assistantMessages = messages.filter(m => m.role === 'assistant').slice(-5);
+function analyzeUserIntent(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return { wantsChat: false, wantsMenu: false, suggestedItems: new Set() };
+  }
+
+  // Get recent user messages
+  const recentMessages = messages.filter(m => m.role === 'user').slice(-3);
+  const lastUserMessage = recentMessages[recentMessages.length - 1]?.content?.toLowerCase() || '';
   
-  // Track what was already suggested to avoid repetition
+  // Track previously suggested items from assistant messages
+  const assistantMessages = messages.filter(m => m.role === 'assistant').slice(-5);
   const suggestedItems = new Set();
   assistantMessages.forEach(msg => {
     const content = msg.content || '';
-    // Extract suggested items from previous responses
-    const matches = content.match(/كابتشينو|شاي|آيس كريم|كريب|فستق|أركيلة|تشيزكيك/g);
-    if (matches) matches.forEach(item => suggestedItems.add(item));
+    // Look for Arabic menu items
+    const arabicItems = content.match(/(كابتشينو|شاي أخضر|ايسد امريكانو|آيس كريم كيكة الماستر|كريب الشوكولا|تشيزكيك|فستق حلبي|أركيلة نعنع)/g);
+    if (arabicItems) {
+      arabicItems.forEach(item => suggestedItems.add(item));
+    }
   });
 
-  const recentUserText = userMessages.map(m => (m.content || '').toLowerCase()).join(' ');
-  
-  // Detect conversation intent
-  const chatOnlyKeywords = /(ما بدي|مابدي|لا بدي|مو حابب|مالي جوعان|مالي عطشان|ما عبالي|بس دردش|دردشة|نحكي|احكي|كيفك|شلونك|اخبارك|شو ماك)/;
-  const menuInterestKeywords = /(بدي|حابب|شو عندكن|عبالي|اقتراح|بارد|ساخن|دافئ|حلو|حلويات|آيس|قهوة|شاي|بوظة|سموذي|موهيتو|كريم|شوكولا|مشروب|اكل)/;
-  const priceInterestKeywords = /(رخيص|غالي|سعر|كم|ميزانية|وفر|اقتصاد)/;
-  
-  const isJustChatting = chatOnlyKeywords.test(recentUserText) && !menuInterestKeywords.test(recentUserText);
-  const wantsMenuSuggestion = menuInterestKeywords.test(recentUserText);
-  const careAboutPrice = priceInterestKeywords.test(recentUserText);
-  
-  // Detect mood/preferences
-  const wantsCold = /(بارد|منعش|حار|صيف|عطش|آيس|ثلج)/i.test(recentUserText);
-  const wantsHot = /(دافئ|ساخن|برد|شتا|دفا|حر)/i.test(recentUserText);
-  const wantsSweet = /(حلو|سكر|شوكولا|كيك|حلويات|كريم)/i.test(recentUserText);
-  const wantsDrink = /(اشرب|مشروب|قهوة|شاي|عصير)/i.test(recentUserText);
-  
-  return {
-    suggestedItems,
-    isJustChatting,
-    wantsMenuSuggestion,
-    careAboutPrice,
-    preferences: {
-      cold: wantsCold,
-      hot: wantsHot,
-      sweet: wantsSweet,
-      drink: wantsDrink
-    }
-  };
+  // Strong indicators user wants to CHAT ONLY
+  const chatIndicators = [
+    /مابدي.{0,10}(اكل|شرب|شي)/,
+    /ما.{0,5}عبالي.{0,10}(اكل|شرب|شي)/,
+    /عبالي.{0,10}(نحكي|دردش|احكي)/,
+    /بدي.{0,10}(نحكي|دردش|احكي)/,
+    /تعا.{0,10}(نحكي|ندردش)/,
+    /نحكي.{0,10}عن.{0,10}الحب/,
+    /بس.{0,10}(دردش|نحكي)/,
+    /لا.{0,10}لا.{0,10}مابدي/
+  ];
+
+  // Strong indicators user wants MENU suggestions
+  const menuIndicators = [
+    /شو.{0,10}عندكن/,
+    /اقتراح/,
+    /عبالي.{0,10}(اكل|شرب|آيس|بوظة|قهوة|شاي)/,
+    /بدي.{0,10}(اكل|شرب|آيس|بوظة|قهوة|شاي)/,
+    /حابب.{0,10}(اكل|شرب|آيس|بوظة|قهوة|شاي)/,
+    /(بارد|ساخن|دافئ|حلو).{0,10}شي/,
+    /شو.{0,10}(رايك|تنصح)/
+  ];
+
+  const wantsChat = chatIndicators.some(pattern => pattern.test(lastUserMessage));
+  const wantsMenu = menuIndicators.some(pattern => pattern.test(lastUserMessage));
+
+  // If user explicitly said they don't want anything, respect it
+  if (wantsChat && !wantsMenu) {
+    return { wantsChat: true, wantsMenu: false, suggestedItems };
+  }
+
+  // If user explicitly wants menu suggestions
+  if (wantsMenu) {
+    return { wantsChat: false, wantsMenu: true, suggestedItems };
+  }
+
+  // Default to chat if unclear
+  return { wantsChat: true, wantsMenu: false, suggestedItems };
 }
 
-function buildSmartPrompt(menuDigest, messages, maxSuggestions = 3) {
-  const context = analyzeConversationContext(messages);
-  const suggestedBefore = Array.from(context.suggestedItems).join(', ');
+function buildContextAwarePrompt(menuDigest, messages, maxSuggestions = 3) {
+  const intent = analyzeUserIntent(messages);
+  const recentChat = messages.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
+
+  let systemPrompt;
   
-  const system = `أنت "ماستر" من بوظة ماستر كيك - مساعد ذكي ومهني.
+  if (intent.wantsChat && !intent.wantsMenu) {
+    // User wants to chat - NO menu suggestions
+    systemPrompt = `أنت "ماستر" - شخصية ودودة من بوظة ماستر كيك.
+
+المستخدم يريد الدردشة فقط وليس اقتراحات طعام.
+
+**قواعد صارمة:**
+- لا تقترح أي عناصر من القائمة
+- تكلم باللهجة السورية بطبيعية
+- كن ودود ومرح
+- اجعل المحادثة ممتعة
+- لا تذكر الطعام أو المشروبات نهائياً
+
+رد JSON:
+{
+  "reply": "رد طبيعي بدون ذكر الطعام",
+  "suggestions": [],
+  "conversationType": "chat"
+}`;
+  } else {
+    // User wants menu suggestions
+    systemPrompt = `أنت "ماستر" من بوظة ماستر كيك - مساعد ذكي.
+
+المستخدم يريد اقتراحات من القائمة.
 
 **سلوكك:**
-- تكلم باللهجة السورية، طبيعي ومهني
-- اجعل المحادثة ممتعة وذكية
-- لا تكرر اقتراحات سابقة: تم اقتراحها مسبقاً = [${suggestedBefore}]
-- فهم السياق: هل المستخدم يدردش فقط أم يريد اقتراحات؟
+- اقترح عناصر مناسبة من القائمة
+- لا تكرر هذه العناصر: ${Array.from(intent.suggestedItems).join(', ')}
+- تكلم باللهجة السورية
+- كن مهني ومفيد
 
-**قواعد مهمة:**
-- المستخدم لا يستطيع "الطلب" - فقط يستطيع رؤية العناصر والأسعار
-- لا تسأل "بدك تطلب؟" أو "بدك تضيف؟" 
-- بدلاً من ذلك: "شو رايك؟" أو "يمكن يعجبك"
-- إذا كان يدردش فقط، تجاوب بطبيعية واقترح بشكل غير مباشر
-
-**السياق الحالي:**
-- يدردش فقط: ${context.isJustChatting}
-- يريد اقتراحات: ${context.wantsMenuSuggestion}
-- يهتم بالسعر: ${context.careAboutPrice}
-- التفضيلات: ${JSON.stringify(context.preferences)}
-
-**الاستجابة:**
-JSON فقط مع:
+رد JSON:
 {
-  "reply": "رد ذكي مناسب للسياق",
-  "suggestions": [{"id":"...","section":"...","arName":"...","price":"..."}],
-  "conversationType": "chat|menu_focused|mixed"
+  "reply": "رد مع اقتراح مناسب",
+  "suggestions": [{"id":"...","section":"...","arName":"...","price":"...","images":[]}],
+  "conversationType": "menu_focused"
 }`;
+  }
 
-  const digestText = JSON.stringify(menuDigest, null, 2);
-  const recentChat = messages.slice(-6).map(m => `${m.role}: ${m.content}`).join('\n');
+  const digestText = intent.wantsMenu ? JSON.stringify(menuDigest, null, 2) : '';
   
-  const examples = `**أمثلة ذكية:**
-
-المستخدم: كيفك؟
-المساعد: {"reply":"أهلين! الحمدلله تمام. شو ماكك اليوم؟","suggestions":[],"conversationType":"chat"}
-
-المستخدم: مابدي اكل شي، بس نحكي
-المساعد: {"reply":"تمام، أهلاً وسهلاً! شو اخبار اليوم معك؟","suggestions":[],"conversationType":"chat"}
-
-المستخدم: عبالي شي بارد
-المساعد: {"reply":"في هالحر؟ ايسد امريكانو منعش وقوي، أو آيس كريم كيكة الماستر لذيذ كتير","suggestions":[{"id":"iced-americano","section":"cold_drinks","arName":"ايسد امريكانو","price":"25000"}],"conversationType":"menu_focused"}`;
-
-  return `${system}\n\n**القائمة:**\n${digestText}\n\n${examples}\n\n**المحادثة:**\n${recentChat}\n\nالمساعد (JSON فقط):`;
+  return `${systemPrompt}\n\n${digestText}\n\n**المحادثة الأخيرة:**\n${recentChat}\n\nالمساعد (JSON فقط):`;
 }
 
 async function callGemini(apiKey, prompt) {
@@ -163,26 +182,21 @@ async function callGemini(apiKey, prompt) {
     body: JSON.stringify({ 
       contents: [{ role: 'user', parts: [{ text: prompt }] }], 
       generationConfig: { 
-        temperature: 0.7, 
-        maxOutputTokens: 400,
-        topP: 0.9
+        temperature: 0.6, 
+        maxOutputTokens: 350
       } 
     })
   });
   if (!resp.ok) return null;
   const data = await resp.json();
   const parts = data?.candidates?.[0]?.content?.parts || [];
-  const text = parts.map(p => p.text).filter(Boolean).join('\n').trim();
-  return text;
+  return parts.map(p => p.text).filter(Boolean).join('\n').trim();
 }
 
-function validateAndCleanResponse(text, digest, maxSuggestions, context) {
-  let cleanText = text;
-  
-  // Clean markdown formatting
+function parseAndValidateResponse(rawText, digest, intent, maxSuggestions) {
+  let cleanText = rawText || '';
   cleanText = cleanText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   
-  // Try to extract JSON
   const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
   let response = null;
   
@@ -190,36 +204,53 @@ function validateAndCleanResponse(text, digest, maxSuggestions, context) {
     try { 
       response = JSON.parse(jsonMatch[0]); 
     } catch (e) { 
-      console.log('JSON parse error:', e.message);
-      response = null; 
+      console.log('JSON parse failed:', e.message);
     }
   }
   
   // Fallback response
-  if (!response || typeof response !== 'object') {
+  if (!response) {
+    if (intent.wantsChat) {
+      return {
+        reply: 'أهلين! شو بدك نحكي عنه؟',
+        suggestions: [],
+        conversationType: 'chat'
+      };
+    } else {
+      return {
+        reply: 'أهلين! شو رايك اقترح لك شي من قائمتنا؟',
+        suggestions: [],
+        conversationType: 'menu_focused'
+      };
+    }
+  }
+  
+  // Force empty suggestions if user wants chat only
+  if (intent.wantsChat && !intent.wantsMenu) {
     return {
-      reply: 'أهلين فيك! شو بدك تحكي اليوم؟',
+      reply: String(response.reply || 'أهلين!').slice(0, 300),
       suggestions: [],
       conversationType: 'chat'
     };
   }
   
-  // Validate suggestions against actual menu
+  // Validate menu suggestions
   const validSuggestions = [];
   const sections = digest.sections || {};
   
-  if (Array.isArray(response.suggestions)) {
+  if (Array.isArray(response.suggestions) && intent.wantsMenu) {
     for (const suggestion of response.suggestions) {
       const section = sections[suggestion.section];
       if (section) {
         const item = section.items.find(it => it.id === suggestion.id);
-        if (item && !context.suggestedItems.has(item.arName)) {
+        if (item && !intent.suggestedItems.has(item.arName)) {
           validSuggestions.push({
             id: item.id,
             section: suggestion.section,
             arName: item.arName,
             price: item.price || 'السعر غير محدد',
-            badge: item.badge || ''
+            badge: item.badge || '',
+            images: item.images || []
           });
           if (validSuggestions.length >= maxSuggestions) break;
         }
@@ -228,9 +259,9 @@ function validateAndCleanResponse(text, digest, maxSuggestions, context) {
   }
   
   return {
-    reply: String(response.reply || 'أهلين فيك!').slice(0, 300),
+    reply: String(response.reply || 'أهلين!').slice(0, 300),
     suggestions: validSuggestions,
-    conversationType: response.conversationType || 'mixed'
+    conversationType: response.conversationType || (intent.wantsMenu ? 'menu_focused' : 'chat')
   };
 }
 
@@ -255,11 +286,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid messages format' });
   }
 
-  // Rate limiting
   const ip = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim();
   const key = `${sessionId || 'anon'}|${ip}`;
   if (!rateLimit(key, 1200)) {
-    return res.status(429).json({ error: 'Too many requests. Please wait a moment.' });
+    return res.status(429).json({ error: 'Rate limit exceeded' });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -269,18 +299,18 @@ export default async function handler(req, res) {
 
   try {
     const digest = await buildMenuDigest();
-    const context = analyzeConversationContext(messages);
-    const prompt = buildSmartPrompt(digest, messages, maxSuggestions);
+    const intent = analyzeUserIntent(messages);
+    const prompt = buildContextAwarePrompt(digest, messages, maxSuggestions);
     
     const rawResponse = await callGemini(apiKey, prompt);
-    const finalResponse = validateAndCleanResponse(rawResponse || '', digest, maxSuggestions, context);
+    const finalResponse = parseAndValidateResponse(rawResponse, digest, intent, maxSuggestions);
     
     res.status(200).json(finalResponse);
     
   } catch (error) {
     console.error('Handler error:', error);
     res.status(500).json({ 
-      reply: 'عذراً، في مشكلة تقنية. جرب مرة تانية.',
+      reply: 'عذراً، في مشكلة تقنية صغيرة. جرب مرة تانية.',
       suggestions: [],
       conversationType: 'chat'
     });
