@@ -290,13 +290,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/ai/menu-chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId, messages: history, maxSuggestions: 3 }) });
         const data = await res.json();
         pushMsg('assistant', data.reply || 'تمام!');
-        // Render suggestion chips
+        // Render suggestion cards with image if available
         if (Array.isArray(data.suggestions) && data.suggestions.length) {
           const wrap = document.createElement('div');
           wrap.className = 'chat-msg chat-bot';
-          wrap.innerHTML = data.suggestions.map(s => `<button class="chip" data-sec="${s.section}" data-id="${s.id}" style="margin:3px 6px 0 0">${s.arName || s.id}${s.price ? ' • ' + s.price : ''}</button>`).join('');
-          wrap.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
-            const sec = btn.getAttribute('data-sec'); const id = btn.getAttribute('data-id');
+          const cards = data.suggestions.map(s => {
+            const img = s.section && s.id ? `menu/${s.section}/${(Array.isArray(s.images)&&s.images[0])?s.images[0]:''}` : '';
+            return `<div class=\"chat-card\" data-sec=\"${s.section}\" data-id=\"${s.id}\">`
+              + `${img ? `<img src=\"${img}\" alt=\"${s.arName || s.id}\"/>` : `<img alt=\"\"/>`}`
+              + `<div class=\"cc-body\"><div class=\"cc-title\">${s.arName || s.id}</div>`
+              + `${s.price ? `<div class=\"cc-price\">${s.price}</div>` : ''}</div></div>`;
+          }).join('');
+          wrap.innerHTML = `<div class=\"chat-cards\">${cards}</div>`;
+          wrap.querySelectorAll('.chat-card').forEach(card => card.addEventListener('click', () => {
+            const sec = card.getAttribute('data-sec'); const id = card.getAttribute('data-id');
             document.getElementById(`sec-${sec}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }));
           chatBody.appendChild(wrap); chatBody.scrollTop = chatBody.scrollHeight;
@@ -306,7 +313,15 @@ document.addEventListener('DOMContentLoaded', () => {
         pushMsg('assistant', 'صار عندي ضغط هلق، جرب بعد شوي 🙏');
       }
     };
-    chatFab.addEventListener('click', () => { chatPanel.classList.add('show'); if (!history.length) pushMsg('assistant', 'أهلا فيك! خبرني بمزاجك اليوم وبقترح لك شي طيب 😋'); });
+    // first-time hint bubble
+    const hint = document.createElement('div');
+    hint.className = 'chat-hint';
+    hint.textContent = 'أنا ماستر، النادل الذكي تبعنا. خبرني بمزاجك وبقترح لك شي طيب ✨';
+    document.body.appendChild(hint);
+    setTimeout(()=> hint.classList.add('show'), 800);
+    setTimeout(()=> hint.classList.remove('show'), 7000);
+
+    chatFab.addEventListener('click', () => { chatPanel.classList.add('show'); if (!history.length) pushMsg('assistant', 'أهلا فيك! أنا ماستر النادل الذكي. خبرني بمزاجك واليوم شو حابب، وبقترح لك خيارات مناسبة 😋'); });
     chatClose.addEventListener('click', () => { chatPanel.classList.remove('show'); });
     chatSend.addEventListener('click', send);
     chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });

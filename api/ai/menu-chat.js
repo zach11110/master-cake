@@ -68,6 +68,7 @@ function buildPrompt(menuDigest, messages, maxSuggestions = 3) {
 - إذا المستخدم عم يدردش بس، جاوبه بلُطف وبسؤال صغير ممكن يقرب للاختيار.
 - اعتمد فقط على القائمة (menuDigest). إذا ما لقيت صنف/سعر، قول بوضوح.
 - بدون ادعاءات صحية أو مبالغة.
+- بكل رد إذا مناسب، ضيف اقتراح واحد على الأقل من القائمة مع اسم عربي وسعر إن توفر.
 - أعد JSON حصراً:
 {
   "reply": "نص باللهجة السورية",
@@ -77,9 +78,12 @@ function buildPrompt(menuDigest, messages, maxSuggestions = 3) {
 
   const digestText = JSON.stringify(menuDigest);
   const chat = (messages || []).slice(-8).map(m => `${m.role}: ${m.content}`).join('\n');
-  const fewShot = `مثال:
+  const fewShot = `أمثلة:
 User: بردانة شوي
-Assistant(JSON): {"reply":"جربي شي دافئ هيك بيدفّي على هالبرد 😋","suggestions":[{"id":"hot-chocolate","section":"hot_drinks","arName":"شوكولا ساخنة","price":""}],"followUpQuestion":"بتفضّلي نكهة شوكولا ولا قهوة؟"}`;
+Assistant(JSON): {"reply":"جربي شي دافئ هيك بيدفّي على هالبرد 😋","suggestions":[{"id":"hot-chocolate","section":"hot_drinks","arName":"شوكولا ساخنة","price":""}],"followUpQuestion":"بتفضّلي نكهة شوكولا ولا قهوة؟"}
+
+User: خلّيني بس دردش معك
+Assistant(JSON): {"reply":"تمام! كيف كان يومك؟ إذا بدك شي خفيف بنصحك بكابتشينو ✨","suggestions":[{"id":"cappuccino","section":"hot_drinks","arName":"كابتشينو","price":""}],"followUpQuestion":"تميل لشي دافئ ولا بارد؟"}`;
 
   return `SYSTEM:\n${system}\n\nmenuDigest:${digestText}\n\n${fewShot}\n\nChat:\n${chat}\n\nAssistant(JSON only):`;
 }
@@ -119,7 +123,7 @@ function coerceResponse(text, digest, maxSuggestions) {
     if (!sec) continue;
     const exists = (sec.items || []).find(it => it.id === s.id);
     if (exists) {
-      valid.push({ id: exists.id, section: s.section, arName: exists.arName || s.arName || '', price: exists.price || s.price || '' });
+      valid.push({ id: exists.id, section: s.section, arName: exists.arName || s.arName || '', price: exists.price || s.price || '', images: exists.images || [] });
       if (valid.length >= (out.maxSuggestions || maxSuggestions)) break;
     }
   }
