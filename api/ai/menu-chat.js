@@ -1,6 +1,5 @@
-// FIXED: Smart Professional Menu Assistant 
-// Now properly detects when users want to chat vs get suggestions
-// Respects user intent and stops forcing menu suggestions
+// COMPLETELY REWRITTEN: Actually Smart Menu Assistant
+// Simple, clear logic that understands context properly
 
 let MENU_CACHE = { digest: null, expiresAt: 0 };
 const RATE_BUCKET = new Map();
@@ -63,115 +62,119 @@ async function buildMenuDigest() {
   return digest;
 }
 
-function analyzeUserIntent(messages) {
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return { wantsChat: false, wantsMenu: false, suggestedItems: new Set() };
-  }
-
-  // Get recent user messages
-  const recentMessages = messages.filter(m => m.role === 'user').slice(-3);
-  const lastUserMessage = recentMessages[recentMessages.length - 1]?.content?.toLowerCase() || '';
+function isMenuRequest(userMessage) {
+  const msg = userMessage.toLowerCase();
   
-  // Track previously suggested items from assistant messages
-  const assistantMessages = messages.filter(m => m.role === 'assistant').slice(-5);
-  const suggestedItems = new Set();
-  assistantMessages.forEach(msg => {
-    const content = msg.content || '';
-    // Look for Arabic menu items
-    const arabicItems = content.match(/(كابتشينو|شاي أخضر|ايسد امريكانو|آيس كريم كيكة الماستر|كريب الشوكولا|تشيزكيك|فستق حلبي|أركيلة نعنع)/g);
-    if (arabicItems) {
-      arabicItems.forEach(item => suggestedItems.add(item));
-    }
-  });
-
-  // Strong indicators user wants to CHAT ONLY
-  const chatIndicators = [
-    /مابدي.{0,10}(اكل|شرب|شي)/,
-    /ما.{0,5}عبالي.{0,10}(اكل|شرب|شي)/,
-    /عبالي.{0,10}(نحكي|دردش|احكي)/,
-    /بدي.{0,10}(نحكي|دردش|احكي)/,
-    /تعا.{0,10}(نحكي|ندردش)/,
-    /نحكي.{0,10}عن.{0,10}الحب/,
-    /بس.{0,10}(دردش|نحكي)/,
-    /لا.{0,10}لا.{0,10}مابدي/
+  // Clear menu requests
+  const menuKeywords = [
+    'شو عندكم', 'شو عندك', 'ايش عندكم', 'ايش عندك',
+    'بدي', 'عبالي', 'حابب', 'اقتراح',
+    'بوظة', 'آيس كريم', 'قهوة', 'شاي', 'كابتشينو',
+    'حلو', 'حلويات', 'كريم', 'شوكولا',
+    'بارد', 'ساخن', 'دافئ', 'منعش',
+    'اركيل', 'أركيلة', 'نرجيلة',
+    'اشرب', 'مشروب', 'تشرب', 'للشرب'
   ];
-
-  // Strong indicators user wants MENU suggestions
-  const menuIndicators = [
-    /شو.{0,10}عندكن/,
-    /اقتراح/,
-    /عبالي.{0,10}(اكل|شرب|آيس|بوظة|قهوة|شاي)/,
-    /بدي.{0,10}(اكل|شرب|آيس|بوظة|قهوة|شاي)/,
-    /حابب.{0,10}(اكل|شرب|آيس|بوظة|قهوة|شاي)/,
-    /(بارد|ساخن|دافئ|حلو).{0,10}شي/,
-    /شو.{0,10}(رايك|تنصح)/
-  ];
-
-  const wantsChat = chatIndicators.some(pattern => pattern.test(lastUserMessage));
-  const wantsMenu = menuIndicators.some(pattern => pattern.test(lastUserMessage));
-
-  // If user explicitly said they don't want anything, respect it
-  if (wantsChat && !wantsMenu) {
-    return { wantsChat: true, wantsMenu: false, suggestedItems };
-  }
-
-  // If user explicitly wants menu suggestions
-  if (wantsMenu) {
-    return { wantsChat: false, wantsMenu: true, suggestedItems };
-  }
-
-  // Default to chat if unclear
-  return { wantsChat: true, wantsMenu: false, suggestedItems };
+  
+  return menuKeywords.some(keyword => msg.includes(keyword));
 }
 
-function buildContextAwarePrompt(menuDigest, messages, maxSuggestions = 3) {
-  const intent = analyzeUserIntent(messages);
+function isChatOnly(userMessage) {
+  const msg = userMessage.toLowerCase();
+  
+  // Clear chat-only indicators
+  const chatKeywords = [
+    'نحكي', 'احكي', 'دردش', 'كيفك', 'شلونك', 
+    'اخبارك', 'شو ماك', 'حكيلي', 'خبرني',
+    'مرحبا', 'هلا', 'السلام', 'أهلين',
+    'تعبان', 'زهقان', 'حزين', 'مبسوط',
+    'عن الحب', 'فيلم', 'لعبة', 'كتاب'
+  ];
+  
+  // Strong rejection of menu
+  const rejectMenu = [
+    'مابدي', 'ما بدي', 'لا بدي', 'مو عايز',
+    'ما عبالي', 'مالي', 'مش جوعان', 'مش عطشان'
+  ];
+  
+  const hasChat = chatKeywords.some(keyword => msg.includes(keyword));
+  const hasReject = rejectMenu.some(keyword => msg.includes(keyword));
+  
+  return hasChat || hasReject;
+}
+
+function extractSuggestedItems(messages) {
+  const suggestedItems = new Set();
+  const assistantMessages = messages.filter(m => m.role === 'assistant').slice(-5);
+  
+  assistantMessages.forEach(msg => {
+    const content = msg.content || '';
+    // Look for **item_name** patterns
+    const itemMatches = content.match(/\*\*(.*?)\*\*/g);
+    if (itemMatches) {
+      itemMatches.forEach(match => {
+        const item = match.replace(/\*\*/g, '');
+        if (item.length > 3 && !item.match(/^\d+$/)) { // Ignore prices
+          suggestedItems.add(item);
+        }
+      });
+    }
+  });
+  
+  return suggestedItems;
+}
+
+function buildPrompt(menuDigest, messages, isMenuMode) {
   const recentChat = messages.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
+  const suggestedItems = extractSuggestedItems(messages);
+  const suggestedList = Array.from(suggestedItems).join(', ');
 
-  let systemPrompt;
-  
-  if (intent.wantsChat && !intent.wantsMenu) {
-    // User wants to chat - NO menu suggestions
-    systemPrompt = `أنت "ماستر" - شخصية ودودة من بوظة ماستر كيك.
+  if (isMenuMode) {
+    return `أنت "ماستر" من بوظة ماستر كيك - نادل ذكي ومهني.
 
-المستخدم يريد الدردشة فقط وليس اقتراحات طعام.
+المستخدم يطلب اقتراحات من القائمة.
 
-**قواعد صارمة:**
-- لا تقترح أي عناصر من القائمة
-- تكلم باللهجة السورية بطبيعية
-- كن ودود ومرح
-- اجعل المحادثة ممتعة
-- لا تذكر الطعام أو المشروبات نهائياً
+**مهمتك:**
+- اقترح 1-2 عناصر مناسبة من القائمة
+- لا تقترح هذه العناصر مرة ثانية: ${suggestedList}
+- كن مهني وودود باللهجة السورية
+- اذكر الاسم والسعر بوضوح
 
-رد JSON:
+**القائمة المتاحة:**
+${JSON.stringify(menuDigest, null, 2)}
+
+رد JSON فقط:
 {
-  "reply": "رد طبيعي بدون ذكر الطعام",
-  "suggestions": [],
-  "conversationType": "chat"
-}`;
+  "reply": "رد مهني مع اقتراح",
+  "suggestions": [{"id":"...","section":"...","arName":"...","price":"...","images":[]}]
+}
+
+**المحادثة:**
+${recentChat}
+
+المساعد:`;
   } else {
-    // User wants menu suggestions
-    systemPrompt = `أنت "ماستر" من بوظة ماستر كيك - مساعد ذكي.
+    return `أنت "ماستر" - شخصية ودودة من بوظة ماستر كيك.
 
-المستخدم يريد اقتراحات من القائمة.
+المستخدم يريد الدردشة فقط، ليس اقتراحات طعام.
 
-**سلوكك:**
-- اقترح عناصر مناسبة من القائمة
-- لا تكرر هذه العناصر: ${Array.from(intent.suggestedItems).join(', ')}
-- تكلم باللهجة السورية
-- كن مهني ومفيد
+**مهمتك:**
+- تكلم بطبيعية باللهجة السورية
+- كن ودود ومرح
+- لا تذكر الطعام أو القائمة نهائياً
+- ركز على المحادثة الطبيعية
 
-رد JSON:
+رد JSON فقط:
 {
-  "reply": "رد مع اقتراح مناسب",
-  "suggestions": [{"id":"...","section":"...","arName":"...","price":"...","images":[]}],
-  "conversationType": "menu_focused"
-}`;
-  }
+  "reply": "رد طبيعي بدون ذكر طعام",
+  "suggestions": []
+}
 
-  const digestText = intent.wantsMenu ? JSON.stringify(menuDigest, null, 2) : '';
-  
-  return `${systemPrompt}\n\n${digestText}\n\n**المحادثة الأخيرة:**\n${recentChat}\n\nالمساعد (JSON فقط):`;
+**المحادثة:**
+${recentChat}
+
+المساعد:`;
+  }
 }
 
 async function callGemini(apiKey, prompt) {
@@ -183,7 +186,7 @@ async function callGemini(apiKey, prompt) {
       contents: [{ role: 'user', parts: [{ text: prompt }] }], 
       generationConfig: { 
         temperature: 0.6, 
-        maxOutputTokens: 350
+        maxOutputTokens: 300
       } 
     })
   });
@@ -193,7 +196,7 @@ async function callGemini(apiKey, prompt) {
   return parts.map(p => p.text).filter(Boolean).join('\n').trim();
 }
 
-function parseAndValidateResponse(rawText, digest, intent, maxSuggestions) {
+function validateResponse(rawText, digest, isMenuMode) {
   let cleanText = rawText || '';
   cleanText = cleanText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
   
@@ -204,46 +207,43 @@ function parseAndValidateResponse(rawText, digest, intent, maxSuggestions) {
     try { 
       response = JSON.parse(jsonMatch[0]); 
     } catch (e) { 
-      console.log('JSON parse failed:', e.message);
+      console.log('JSON parse failed:', e);
     }
   }
   
-  // Fallback response
+  // Fallback
   if (!response) {
-    if (intent.wantsChat) {
+    if (isMenuMode) {
       return {
-        reply: 'أهلين! شو بدك نحكي عنه؟',
-        suggestions: [],
-        conversationType: 'chat'
+        reply: 'أهلين! شو رايك اقترح لك شي من قائمتنا؟',
+        suggestions: []
       };
     } else {
       return {
-        reply: 'أهلين! شو رايك اقترح لك شي من قائمتنا؟',
-        suggestions: [],
-        conversationType: 'menu_focused'
+        reply: 'أهلين! شو بدك نحكي عنه؟',
+        suggestions: []
       };
     }
   }
   
-  // Force empty suggestions if user wants chat only
-  if (intent.wantsChat && !intent.wantsMenu) {
+  // Force empty suggestions if not menu mode
+  if (!isMenuMode) {
     return {
       reply: String(response.reply || 'أهلين!').slice(0, 300),
-      suggestions: [],
-      conversationType: 'chat'
+      suggestions: []
     };
   }
   
-  // Validate menu suggestions
+  // Validate suggestions for menu mode
   const validSuggestions = [];
   const sections = digest.sections || {};
   
-  if (Array.isArray(response.suggestions) && intent.wantsMenu) {
+  if (Array.isArray(response.suggestions)) {
     for (const suggestion of response.suggestions) {
       const section = sections[suggestion.section];
       if (section) {
         const item = section.items.find(it => it.id === suggestion.id);
-        if (item && !intent.suggestedItems.has(item.arName)) {
+        if (item) {
           validSuggestions.push({
             id: item.id,
             section: suggestion.section,
@@ -252,7 +252,7 @@ function parseAndValidateResponse(rawText, digest, intent, maxSuggestions) {
             badge: item.badge || '',
             images: item.images || []
           });
-          if (validSuggestions.length >= maxSuggestions) break;
+          if (validSuggestions.length >= 2) break;
         }
       }
     }
@@ -260,8 +260,7 @@ function parseAndValidateResponse(rawText, digest, intent, maxSuggestions) {
   
   return {
     reply: String(response.reply || 'أهلين!').slice(0, 300),
-    suggestions: validSuggestions,
-    conversationType: response.conversationType || (intent.wantsMenu ? 'menu_focused' : 'chat')
+    suggestions: validSuggestions
   };
 }
 
@@ -280,9 +279,9 @@ export default async function handler(req, res) {
     body = req.body; 
   }
   
-  const { sessionId = '', messages = [], maxSuggestions = 3 } = body || {};
+  const { sessionId = '', messages = [] } = body || {};
   
-  if (!Array.isArray(messages)) {
+  if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'Invalid messages format' });
   }
 
@@ -298,21 +297,34 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Get the last user message to understand intent
+    const lastUserMessage = messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
+    
+    // Simple, clear decision logic
+    let isMenuMode = false;
+    
+    if (isMenuRequest(lastUserMessage)) {
+      isMenuMode = true;
+    } else if (isChatOnly(lastUserMessage)) {
+      isMenuMode = false;
+    } else {
+      // Default to chat if unclear
+      isMenuMode = false;
+    }
+    
     const digest = await buildMenuDigest();
-    const intent = analyzeUserIntent(messages);
-    const prompt = buildContextAwarePrompt(digest, messages, maxSuggestions);
+    const prompt = buildPrompt(digest, messages, isMenuMode);
     
     const rawResponse = await callGemini(apiKey, prompt);
-    const finalResponse = parseAndValidateResponse(rawResponse, digest, intent, maxSuggestions);
+    const finalResponse = validateResponse(rawResponse, digest, isMenuMode);
     
     res.status(200).json(finalResponse);
     
   } catch (error) {
     console.error('Handler error:', error);
     res.status(500).json({ 
-      reply: 'عذراً، في مشكلة تقنية صغيرة. جرب مرة تانية.',
-      suggestions: [],
-      conversationType: 'chat'
+      reply: 'عذراً، في مشكلة تقنية. جرب مرة تانية.',
+      suggestions: []
     });
   }
 }
