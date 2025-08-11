@@ -28,7 +28,7 @@ const BRAND_FALLBACK = {
   }
 };
 
-const SECTION_ORDER = ['cold_drinks', 'hot_drinks', 'sweets', 'argillies', 'ice_cream'];
+const DEFAULT_SECTION_ORDER = ['cold_drinks', 'hot_drinks', 'sweets', 'argillies', 'ice_cream'];
 
 // Curated notes per section (AR/EN)
 const SECTION_NOTES = {
@@ -88,21 +88,30 @@ function loadManifestFromJS() {
 
 function getBrand(t, lang) {
   if (!t) return BRAND_FALLBACK[lang];
+  const sectionsObj = {};
+  const keys = Object.keys(t.sections || {});
+  if (keys.length) {
+    keys.forEach((key) => {
+      const sec = t.sections[key] || {};
+      sectionsObj[key] = lang === 'ar' ? (sec.ar || key) : (sec.en || key);
+    });
+  } else {
+    // fallback if manifest has no sections
+    DEFAULT_SECTION_ORDER.forEach((key) => {
+      const sec = t.sections?.[key];
+      sectionsObj[key] = lang === 'ar' ? (sec?.ar || BRAND_FALLBACK.ar.sections[key]) : (sec?.en || BRAND_FALLBACK.en.sections[key]);
+    });
+  }
   return {
     name: lang === 'ar' ? (t.brand?.arName || BRAND_FALLBACK.ar.name) : (t.brand?.enName || BRAND_FALLBACK.en.name),
     tag: lang === 'ar' ? (t.brand?.tagAr || BRAND_FALLBACK.ar.tag) : (t.brand?.tagEn || BRAND_FALLBACK.en.tag),
-    sections: SECTION_ORDER.reduce((acc, key) => {
-      const sec = t.sections?.[key];
-      acc[key] = lang === 'ar' ? (sec?.ar || BRAND_FALLBACK.ar.sections[key]) : (sec?.en || BRAND_FALLBACK.en.sections[key]);
-      return acc;
-    }, {})
+    sections: sectionsObj,
   };
 }
 
 function buildItemsForSection(manifest, sectionKey, lang) {
-  const items = manifest?.sections?.[sectionKey]?.items || [];
-  if (items.length === 0) {
-    // Provide a few demo items if empty
+  if (!manifest) {
+    // Only show demo items when no JSON manifest is available (local file mode)
     const label = lang === 'ar' ? BRAND_FALLBACK.ar.demo : BRAND_FALLBACK.en.demo;
     return Array.from({ length: 6 }).map((_, i) => ({
       id: `demo-${sectionKey}-${i + 1}`,
@@ -113,7 +122,9 @@ function buildItemsForSection(manifest, sectionKey, lang) {
       images: []
     }));
   }
-  return items;
+  const sec = manifest.sections?.[sectionKey];
+  if (!sec) return [];
+  return sec.items || [];
 }
 
 async function renderUI(lang) {
@@ -148,10 +159,13 @@ async function renderUI(lang) {
   const brandTagEl = $('#brandTag');
   if (brandTagEl) brandTagEl.textContent = t.tag;
 
+  // Determine section keys
+  const sectionKeys = Object.keys(t.sections || {});
+
   // Render quick nav chips
   const quickNav = $('#quickNav');
   quickNav.innerHTML = '';
-  SECTION_ORDER.forEach((key) => {
+  sectionKeys.forEach((key) => {
     const chip = document.createElement('button');
     chip.className = 'chip';
     chip.textContent = t.sections[key];
@@ -165,7 +179,7 @@ async function renderUI(lang) {
   const root = $('#sectionsRoot');
   root.innerHTML = '';
 
-  SECTION_ORDER.forEach((key, idx) => {
+  sectionKeys.forEach((key, idx) => {
     const card = document.createElement('article');
     card.className = 'section-card';
     card.id = `sec-${key}`;
