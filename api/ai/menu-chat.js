@@ -106,9 +106,9 @@ function extractConversationContext(messages) {
 
 // STEP 1: Smart Intent Classification
 function buildIntentClassifierPrompt(context) {
-  return `أنت خبير في فهم النوايا للهجة السورية. 
+  return `أنت خبير في فهم النوايا للهجة السورية. حلل المحادثة بعناية شديدة.
 
-**المهمة:** حلل المحادثة وحدد نية المستخدم بدقة.
+**المهمة الحرجة:** حدد نية المستخدم بدقة 100%. إذا المستخدم يرفض الطعام أو يريد يدردش، لا تقترح طعام أبداً.
 
 **السياق:**
 - آخر رسالة: "${context.lastUserMessage}"
@@ -118,30 +118,39 @@ function buildIntentClassifierPrompt(context) {
 **تدفق المحادثة الأخير:**
 ${context.conversationFlow.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
 
-**انتبه للإشارات التالية:**
+**قواعد صارمة للتصنيف:**
+
+**نية الدردشة (CHAT_INTENT) - أولوية عالية:**
+- رفض واضح: "ماعبالي"، "ما بدي"، "مش عايز"، "لا شكراً"
+- عبارات دردشة: "عبالي ندردش"، "بدي احكي"، "نتسلى"
+- تحية بسيطة: "كيفك"، "شلونك"، "أهلين" (بدون طلب طعام)
+- أسئلة شخصية: "شو اخبارك"، "كيف يومك"، "شو عملت"
+- مواضيع عامة: "حكيلي عن..."، "شو رايك بـ..."
+- إجابات عامة: "تمام"، "زين"، "منيح" (إذا مو بسياق طعام)
 
 **نية القائمة (MENU_INTENT):**
-- طلب مباشر: "شو عندكم"، "اقترح علي"، "بدي شي"
-- استفسار عن نوع: "في بوظة؟"، "عندكم قهوة؟"، "شو في حلو؟"
-- رد إيجابي على اقتراح: "اي"، "تمام"، "حلو"
-- طلب بديل: "شي تاني"، "غير هيك"
-
-**نية الدردشة (CHAT_INTENT):**
-- تحية: "مرحبا"، "كيفك"، "شلونك"
-- دردشة شخصية: "شو اخبارك"، "كيف يومك"
-- مواضيع عامة: "حكيلي عن..."، "شو رايك"
-- رفض القائمة: "مابدي اكل"، "مش جوعان"
+- طلب مباشر وواضح: "شو عندكم"، "اقترح علي شي آكل/اشرب"، "بدي شي"
+- استفسار محدد: "في بوظة؟"، "عندكم قهوة؟"، "شو في حلو؟"
+- رد إيجابي بعد اقتراح طعام: "اي بدي"، "تمام اقترح"، "حلو شو في"
+- طلب بديل بعد اقتراح: "شي تاني"، "غير هيك"، "شو كمان في"
 
 **نية مختلطة (MIXED_INTENT):**
-- سؤال + طلب: "كيفك؟ شو عندكم؟"
-- دردشة تؤدي لطلب
+- سؤال + طلب واضح: "كيفك؟ شو عندكم؟"
+- دردشة تنتهي بطلب: "...و بدي شي اشربه"
+
+**مهم جداً:**
+- إذا المستخدم قال "ماعبالي" أو "ما بدي" → CHAT_INTENT مؤكد
+- إذا المستخدم قال "عبالي ندردش" → CHAT_INTENT مؤكد  
+- إذا كانت تحية عادية بدون طلب طعام → CHAT_INTENT
+- إذا المستخدم رفض اقتراحات سابقة → CHAT_INTENT
 
 رد بـ JSON فقط:
 {
   "intent": "MENU_INTENT|CHAT_INTENT|MIXED_INTENT",
   "confidence": 0.0-1.0,
-  "reasoning": "سبب قصير للقرار",
-  "context_clues": ["دلائل من السياق"]
+  "reasoning": "سبب واضح للقرار",
+  "context_clues": ["دلائل من السياق"],
+  "rejection_detected": true|false
 }`;
 }
 
@@ -180,30 +189,39 @@ ${JSON.stringify(menuDigest, null, 2)}
 function buildChatResponsePrompt(context) {
   return `أنت "ماستر" - شخصية ودودة من بوظة ماستر كيك. تتكلم باللهجة السورية بطبيعية.
 
-**الموقف:** المستخدم يريد الدردشة العادية.
+**الموقف الحرج:** المستخدم لا يريد طعام أو يريد دردشة عادية فقط. لا تذكر أي طعام أو شراب أو قائمة نهائياً.
 
 **السياق:**
 - آخر رسالة: "${context.lastUserMessage}"
 - طول المحادثة: ${context.conversationLength} رسالة
 
-**قواعد مهمة:**
-- تكلم بطبيعية باللهجة السورية
+**قواعد صارمة:**
+- ممنوع منعاً باتاً ذكر أي طعام أو شراب
+- ممنوع ذكر القائمة أو الاقتراحات
+- ممنوع ذكر الأسعار
+- تكلم عن مواضيع عامة: الطقس، اليوم، المزاج، الأخبار
 - كن ودود ومرح ولبق
-- لا تذكر الطعام أو القائمة إلا إذا سأل
-- ركز على المحادثة الطبيعية
-- اجعل الرد قصير ومناسب
+- اجعل الرد قصير ومناسب (جملة أو جملتين)
+- استخدم اللهجة السورية الطبيعية
 
 **تدفق المحادثة:**
 ${context.conversationFlow.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
 
-**أمثلة على الردود الجيدة:**
+**أمثلة على الردود المطلوبة:**
 - "أهلين وسهلين! كيفك اليوم؟"
-- "يا مرحبا فيك! شو اخبارك؟"
+- "يا مرحبا فيك! شو اخبارك؟"  
 - "الله يعطيك العافية! شو عملت اليوم؟"
+- "تمام حبيبي، شو جديدك؟"
+- "أهلين فيك! الطقس حلو اليوم، صح؟"
+
+**أمثلة ممنوعة (لا تستخدمها أبداً):**
+- أي ذكر للطعام أو الشراب
+- أي ذكر للقائمة أو الاقتراحات
+- أي ذكر للأسعار
 
 رد بـ JSON فقط:
 {
-  "reply": "رد طبيعي ودود",
+  "reply": "رد طبيعي ودود بدون ذكر طعام نهائياً",
   "suggestions": []
 }`;
 }
@@ -335,7 +353,12 @@ export default async function handler(req, res) {
     // STEP 2: Generate appropriate response based on intent
     let finalResponse;
     
-    if (intentResult.intent === 'MENU_INTENT' || intentResult.intent === 'MIXED_INTENT') {
+    // Add extra validation for rejection detection
+    const userMessage = context.lastUserMessage.toLowerCase();
+    const strongRejectWords = ['ماعبالي', 'ما بدي', 'مابدي', 'مش عايز', 'لا شكرا', 'ندردش', 'احكي', 'نتسلى'];
+    const hasStrongReject = strongRejectWords.some(word => userMessage.includes(word));
+    
+    if ((intentResult.intent === 'MENU_INTENT' || intentResult.intent === 'MIXED_INTENT') && !hasStrongReject) {
       // Load menu and generate menu response
       const digest = await buildMenuDigest();
       const menuPrompt = buildMenuResponsePrompt(context, digest);
@@ -344,7 +367,7 @@ export default async function handler(req, res) {
       finalResponse = validateMenuResponse(menuResponse, digest);
       
     } else {
-      // Generate chat response
+      // Generate chat response (including cases with strong rejection)
       const chatPrompt = buildChatResponsePrompt(context);
       const chatRawResponse = await callGemini(apiKey, chatPrompt);
       const chatResponse = parseJsonResponse(chatRawResponse);
