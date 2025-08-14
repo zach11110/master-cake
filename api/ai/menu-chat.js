@@ -1,6 +1,5 @@
-// SMART MENU ASSISTANT: Two-Step AI Approach
-// Step 1: Intelligent Intent Classification
-// Step 2: Context-Aware Response Generation
+// ULTRA-SMART MENU ASSISTANT: Context-Aware System
+// Enhanced with conversation state tracking and better Syrian dialect understanding
 
 let MENU_CACHE = { digest: null, expiresAt: 0 };
 const RATE_BUCKET = new Map();
@@ -63,9 +62,9 @@ async function buildMenuDigest() {
   return digest;
 }
 
+// Enhanced context extraction with conversation state tracking
 function extractConversationContext(messages) {
-  // Get last 6 messages for better context
-  const recentMessages = messages.slice(-6);
+  const recentMessages = messages.slice(-8); // Get more context
   
   // Extract previously suggested items
   const suggestedItems = new Set();
@@ -83,145 +82,247 @@ function extractConversationContext(messages) {
     }
   });
   
-  // Detect conversation flow patterns
-  const conversationFlow = [];
-  for (let i = Math.max(0, recentMessages.length - 4); i < recentMessages.length; i++) {
-    const msg = recentMessages[i];
-    if (msg) {
-      conversationFlow.push({
-        role: msg.role,
-        content: (msg.content || '').slice(0, 100),
-        timestamp: i
-      });
-    }
+  // Analyze conversation state
+  const userMessages = recentMessages.filter(m => m.role === 'user');
+  const lastUserMessage = userMessages.slice(-1)[0]?.content || '';
+  const previousUserMessage = userMessages.slice(-2)[0]?.content || '';
+  
+  // Detect conversation flow and state
+  const conversationState = {
+    justSuggestedMenu: false,
+    userAskedForMore: false,
+    userWantsColdDrinks: false,
+    userWantsIceCream: false,
+    userWantsSpecificType: '',
+    conversationTopic: 'greeting'
+  };
+  
+  // Check if we just suggested menu items
+  const lastAssistantMsg = recentMessages.filter(m => m.role === 'assistant').slice(-1)[0];
+  if (lastAssistantMsg && lastAssistantMsg.content && lastAssistantMsg.content.includes('**')) {
+    conversationState.justSuggestedMenu = true;
+  }
+  
+  // Detect specific requests
+  const lowerMsg = lastUserMessage.toLowerCase();
+  if (lowerMsg.includes('بوظة') || lowerMsg.includes('آيس كريم')) {
+    conversationState.userWantsIceCream = true;
+    conversationState.userWantsSpecificType = 'ice_cream';
+  }
+  if (lowerMsg.includes('مشاريب باردة') || lowerMsg.includes('بارد')) {
+    conversationState.userWantsColdDrinks = true;
+    conversationState.userWantsSpecificType = 'cold_drinks';
+  }
+  if (lowerMsg.includes('في شي لسا') || lowerMsg.includes('شي تاني') || lowerMsg.includes('كمان')) {
+    conversationState.userAskedForMore = true;
   }
   
   return {
     suggestedItems: Array.from(suggestedItems),
-    conversationFlow,
-    lastUserMessage: messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '',
-    conversationLength: messages.length
+    lastUserMessage,
+    previousUserMessage,
+    conversationLength: messages.length,
+    conversationState,
+    recentFlow: recentMessages.slice(-4).map(msg => ({
+      role: msg.role,
+      content: (msg.content || '').slice(0, 150)
+    }))
   };
 }
 
-// STEP 1: Smart Intent Classification
-function buildIntentClassifierPrompt(context) {
-  return `أنت خبير في فهم النوايا للهجة السورية. حلل المحادثة بعناية شديدة.
+// SMART INTENT DETECTION: Rule-based + AI hybrid approach
+function detectIntentHybrid(context) {
+  const msg = context.lastUserMessage.toLowerCase().trim();
+  const prevMsg = context.previousUserMessage.toLowerCase();
+  const state = context.conversationState;
+  
+  // EXPLICIT MENU REQUESTS - High confidence
+  const explicitMenuKeywords = [
+    'شو عندكم', 'اقترح علي', 'بدي شي', 'عبالي بوظة', 'عبالي آيس كريم',
+    'في بوظة', 'عندكم قهوة', 'مشاريب باردة', 'شو في حلو',
+    'في شي لسا', 'شي تاني', 'كمان شي', 'غير هيك'
+  ];
+  
+  for (const keyword of explicitMenuKeywords) {
+    if (msg.includes(keyword)) {
+      return {
+        intent: 'MENU_INTENT',
+        confidence: 0.95,
+        method: 'rule_based',
+        reasoning: `Detected explicit menu keyword: "${keyword}"`
+      };
+    }
+  }
+  
+  // CONTINUATION REQUESTS - Check context
+  const continuationKeywords = ['في شي', 'شي لسا', 'كمان', 'تاني'];
+  if (continuationKeywords.some(k => msg.includes(k)) && state.justSuggestedMenu) {
+    return {
+      intent: 'MENU_INTENT',
+      confidence: 0.9,
+      method: 'context_based',
+      reasoning: 'User asking for more after menu suggestions'
+    };
+  }
+  
+  // EXPLICIT CHAT/REJECTION - High confidence
+  const explicitChatKeywords = [
+    'ماعبالي', 'ما بدي', 'مابدي', 'مش عايز', 'لا شكرا',
+    'عبالي ندردش', 'بدي احكي', 'نتسلى', 'زهقان', 'ملل'
+  ];
+  
+  for (const keyword of explicitChatKeywords) {
+    if (msg.includes(keyword)) {
+      return {
+        intent: 'CHAT_INTENT',
+        confidence: 0.95,
+        method: 'rule_based',
+        reasoning: `Detected explicit chat/rejection keyword: "${keyword}"`
+      };
+    }
+  }
+  
+  // SPECIFIC TYPE REQUESTS
+  if (msg.includes('بوظة') || msg.includes('آيس كريم')) {
+    return {
+      intent: 'MENU_INTENT',
+      confidence: 0.9,
+      method: 'type_specific',
+      reasoning: 'User wants ice cream specifically',
+      targetCategory: 'ice_cream'
+    };
+  }
+  
+  if (msg.includes('مشاريب') || (msg.includes('بارد') && (msg.includes('شو') || msg.includes('عندكم')))) {
+    return {
+      intent: 'MENU_INTENT',
+      confidence: 0.9,
+      method: 'type_specific',
+      reasoning: 'User wants cold drinks specifically',
+      targetCategory: 'cold_drinks'
+    };
+  }
+  
+  // AMBIGUOUS CASES - Need AI classification
+  const ambiguousKeywords = ['كيفك', 'أهلين', 'مرحبا', 'تمام', 'اي', 'حلو'];
+  if (ambiguousKeywords.some(k => msg.includes(k))) {
+    return {
+      intent: 'NEEDS_AI_CLASSIFICATION',
+      confidence: 0.5,
+      method: 'ambiguous',
+      reasoning: 'Ambiguous message needs AI analysis'
+    };
+  }
+  
+  // DEFAULT: Likely chat
+  return {
+    intent: 'CHAT_INTENT',
+    confidence: 0.7,
+    method: 'default',
+    reasoning: 'No clear menu indicators, defaulting to chat'
+  };
+}
 
-**المهمة الحرجة:** حدد نية المستخدم بدقة 100%. إذا المستخدم يرفض الطعام أو يريد يدردش، لا تقترح طعام أبداً.
+// AI Intent Classification (only for ambiguous cases)
+function buildAIIntentPrompt(context) {
+  return `أنت خبير تحليل النوايا للهجة السورية. حلل هذه المحادثة بدقة.
+
+**المحادثة الأخيرة:**
+${context.recentFlow.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+
+**السياق المهم:**
+- العناصر المقترحة سابقاً: ${context.suggestedItems.join(', ') || 'لا يوجد'}
+- هل اقترحنا قائمة للتو؟ ${context.conversationState.justSuggestedMenu ? 'نعم' : 'لا'}
+- طول المحادثة: ${context.conversationLength} رسالة
+
+**قواعد التحليل:**
+1. إذا المستخدم قال "ولاشي عبالي بوظة" = يريد بوظة → MENU_INTENT
+2. إذا قال "في شي لسا؟" بعد اقتراحات = يريد المزيد → MENU_INTENT
+3. إذا قال "عندكم مشاريب باردة؟" = يريد مشروبات → MENU_INTENT
+4. إذا قال "كيفك" فقط بدون طلب = دردشة → CHAT_INTENT
+5. إذا قال "ماعبالي" أو "ملل" = دردشة → CHAT_INTENT
+
+**آخر رسالة للتحليل:** "${context.lastUserMessage}"
+
+رد بـ JSON فقط:
+{
+  "intent": "MENU_INTENT|CHAT_INTENT",
+  "confidence": 0.0-1.0,
+  "reasoning": "سبب القرار بوضوح"
+}`;
+}
+
+// Enhanced Menu Response with category awareness
+function buildSmartMenuPrompt(context, menuDigest, targetCategory = null) {
+  let categoryFocus = '';
+  if (targetCategory) {
+    categoryFocus = `**مهم جداً:** المستخدم يريد "${targetCategory}" تحديداً، ركز على هذا القسم.`;
+  } else if (context.conversationState.userWantsIceCream) {
+    categoryFocus = `**مهم جداً:** المستخدم طلب بوظة/آيس كريم، ركز على قسم البوظة.`;
+    targetCategory = 'ice_cream';
+  } else if (context.conversationState.userWantsColdDrinks) {
+    categoryFocus = `**مهم جداً:** المستخدم طلب مشروبات باردة، ركز على المشروبات الباردة.`;
+    targetCategory = 'cold_drinks';
+  }
+
+  return `أنت "ماستر" - نادل محترف ودود من بوظة ماستر كيك.
+
+**الموقف:** المستخدم يريد اقتراحات من القائمة.
+${categoryFocus}
 
 **السياق:**
 - آخر رسالة: "${context.lastUserMessage}"
 - العناصر المقترحة سابقاً: ${context.suggestedItems.join(', ') || 'لا يوجد'}
-- طول المحادثة: ${context.conversationLength} رسالة
+- هل يطلب المزيد؟ ${context.conversationState.userAskedForMore ? 'نعم' : 'لا'}
 
-**تدفق المحادثة الأخير:**
-${context.conversationFlow.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
-
-**قواعد صارمة للتصنيف:**
-
-**نية الدردشة (CHAT_INTENT) - أولوية عالية:**
-- رفض واضح: "ماعبالي"، "ما بدي"، "مش عايز"، "لا شكراً"
-- عبارات دردشة: "عبالي ندردش"، "بدي احكي"، "نتسلى"
-- تحية بسيطة: "كيفك"، "شلونك"، "أهلين" (بدون طلب طعام)
-- أسئلة شخصية: "شو اخبارك"، "كيف يومك"، "شو عملت"
-- مواضيع عامة: "حكيلي عن..."، "شو رايك بـ..."
-- إجابات عامة: "تمام"، "زين"، "منيح" (إذا مو بسياق طعام)
-
-**نية القائمة (MENU_INTENT):**
-- طلب مباشر وواضح: "شو عندكم"، "اقترح علي شي آكل/اشرب"، "بدي شي"
-- استفسار محدد: "في بوظة؟"، "عندكم قهوة؟"، "شو في حلو؟"
-- رد إيجابي بعد اقتراح طعام: "اي بدي"، "تمام اقترح"، "حلو شو في"
-- طلب بديل بعد اقتراح: "شي تاني"، "غير هيك"، "شو كمان في"
-
-**نية مختلطة (MIXED_INTENT):**
-- سؤال + طلب واضح: "كيفك؟ شو عندكم؟"
-- دردشة تنتهي بطلب: "...و بدي شي اشربه"
-
-**مهم جداً:**
-- إذا المستخدم قال "ماعبالي" أو "ما بدي" → CHAT_INTENT مؤكد
-- إذا المستخدم قال "عبالي ندردش" → CHAT_INTENT مؤكد  
-- إذا كانت تحية عادية بدون طلب طعام → CHAT_INTENT
-- إذا المستخدم رفض اقتراحات سابقة → CHAT_INTENT
-
-رد بـ JSON فقط:
-{
-  "intent": "MENU_INTENT|CHAT_INTENT|MIXED_INTENT",
-  "confidence": 0.0-1.0,
-  "reasoning": "سبب واضح للقرار",
-  "context_clues": ["دلائل من السياق"],
-  "rejection_detected": true|false
-}`;
-}
-
-// STEP 2A: Menu Response Generator
-function buildMenuResponsePrompt(context, menuDigest) {
-  return `أنت "ماستر" - نادل محترف ودود من بوظة ماستر كيك. تتكلم باللهجة السورية بطبيعية.
-
-**الموقف:** المستخدم يريد اقتراحات من القائمة.
-
-**السياق:**
-- آخر رسالة: "${context.lastUserMessage}"
-- عناصر مقترحة سابقاً: ${context.suggestedItems.join(', ') || 'لا يوجد'}
-
-**قواعد مهمة:**
-- اقترح 1-2 عناصر مناسبة فقط
-- لا تكرر العناصر المقترحة سابقاً
-- اذكر الاسم والسعر بوضوح  
-- كن ودود ومهني
+**قواعد ذهبية:**
+- اقترح 1-2 عناصر جديدة فقط
+- لا تكرر العناصر المقترحة سابقاً أبداً
+- اذكر الاسم والسعر بوضوح
 - استخدم اللهجة السورية الطبيعية
+- كن ودود ومهني
 
-**القائمة المتاحة:**
+**القائمة:**
 ${JSON.stringify(menuDigest, null, 2)}
 
-**أمثلة على الردود الجيدة:**
-- "أهلين! شو رايك **كابتشينو** (12500 ل.س) دافي ولذيذ؟"
-- "يا مرحبا! عنا **آيس كريم كيكة الماستر** (15000 ل.س) طعم رائع!"
+**أمثلة ردود صحيحة:**
+- "أهلين! شو رايك **فستق حلبي** بوظة كريمية؟"
+- "يا مرحبا! عنا **شاي أخضر** (20000 ل.س) منعش ودافي!"
 
 رد بـ JSON فقط:
 {
-  "reply": "رد ودود مع اقتراح واضح",
+  "reply": "رد ودود مع اقتراح جديد",
   "suggestions": [{"id":"...","section":"...","arName":"...","price":"...","badge":"...","images":[]}]
 }`;
 }
 
-// STEP 2B: Chat Response Generator  
-function buildChatResponsePrompt(context) {
-  return `أنت "ماستر" - شخصية ودودة من بوظة ماستر كيك. تتكلم باللهجة السورية بطبيعية.
+// Enhanced Chat Response
+function buildSmartChatPrompt(context) {
+  return `أنت "ماستر" - شخصية ودودة من بوظة ماستر كيك.
 
-**الموقف الحرج:** المستخدم لا يريد طعام أو يريد دردشة عادية فقط. لا تذكر أي طعام أو شراب أو قائمة نهائياً.
+**المهمة:** دردشة طبيعية بدون ذكر طعام نهائياً.
 
 **السياق:**
 - آخر رسالة: "${context.lastUserMessage}"
-- طول المحادثة: ${context.conversationLength} رسالة
+- المحادثة الأخيرة:
+${context.recentFlow.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
 
 **قواعد صارمة:**
-- ممنوع منعاً باتاً ذكر أي طعام أو شراب
-- ممنوع ذكر القائمة أو الاقتراحات
-- ممنوع ذكر الأسعار
-- تكلم عن مواضيع عامة: الطقس، اليوم، المزاج، الأخبار
-- كن ودود ومرح ولبق
-- اجعل الرد قصير ومناسب (جملة أو جملتين)
+- ممنوع ذكر أي طعام أو شراب أو قائمة
+- ممنوع ذكر أسعار
+- ركز على: المزاج، اليوم، الطقس، المشاعر
+- كن ودود ومتفهم
 - استخدم اللهجة السورية الطبيعية
+- رد قصير (جملة أو اثنين)
 
-**تدفق المحادثة:**
-${context.conversationFlow.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
-
-**أمثلة على الردود المطلوبة:**
-- "أهلين وسهلين! كيفك اليوم؟"
-- "يا مرحبا فيك! شو اخبارك؟"  
-- "الله يعطيك العافية! شو عملت اليوم؟"
-- "تمام حبيبي، شو جديدك؟"
-- "أهلين فيك! الطقس حلو اليوم، صح؟"
-
-**أمثلة ممنوعة (لا تستخدمها أبداً):**
-- أي ذكر للطعام أو الشراب
-- أي ذكر للقائمة أو الاقتراحات
-- أي ذكر للأسعار
+**أمثلة ردود مناسبة:**
+- "الله يعطيك العافية! شو صار معك اليوم؟"
+- "يا هلا فيك! شو أخبارك؟"
+- "تمام حبيبي، كيف مزاجك اليوم؟"
 
 رد بـ JSON فقط:
 {
-  "reply": "رد طبيعي ودود بدون ذكر طعام نهائياً",
+  "reply": "رد طبيعي ودود",
   "suggestions": []
 }`;
 }
@@ -234,8 +335,8 @@ async function callGemini(apiKey, prompt) {
     body: JSON.stringify({ 
       contents: [{ role: 'user', parts: [{ text: prompt }] }], 
       generationConfig: { 
-        temperature: 0.7, 
-        maxOutputTokens: 400
+        temperature: 0.8, 
+        maxOutputTokens: 500
       } 
     })
   });
@@ -323,7 +424,7 @@ export default async function handler(req, res) {
 
   const ip = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim();
   const key = `${sessionId || 'anon'}|${ip}`;
-  if (!rateLimit(key, 1000)) {
+  if (!rateLimit(key, 800)) {
     return res.status(429).json({ error: 'Rate limit exceeded' });
   }
 
@@ -333,53 +434,66 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract conversation context
+    // STEP 1: Extract enhanced context
     const context = extractConversationContext(messages);
     
-    // STEP 1: Classify Intent
-    const intentPrompt = buildIntentClassifierPrompt(context);
-    const intentRawResponse = await callGemini(apiKey, intentPrompt);
-    const intentResult = parseJsonResponse(intentRawResponse);
+    // STEP 2: Hybrid Intent Detection
+    let intentResult = detectIntentHybrid(context);
     
-    console.log('Intent Classification:', intentResult);
+    console.log('Hybrid Intent Detection:', intentResult);
     
-    if (!intentResult) {
-      return res.status(500).json({ 
-        reply: 'عذراً، في مشكلة تقنية. جرب مرة تانية.',
-        suggestions: []
-      });
+    // STEP 3: AI classification for ambiguous cases only
+    if (intentResult.intent === 'NEEDS_AI_CLASSIFICATION') {
+      const aiPrompt = buildAIIntentPrompt(context);
+      const aiResponse = await callGemini(apiKey, aiPrompt);
+      const aiResult = parseJsonResponse(aiResponse);
+      
+      if (aiResult) {
+        intentResult = {
+          intent: aiResult.intent,
+          confidence: aiResult.confidence,
+          method: 'ai_classified',
+          reasoning: aiResult.reasoning
+        };
+      } else {
+        // Fallback to chat if AI fails
+        intentResult.intent = 'CHAT_INTENT';
+        intentResult.confidence = 0.6;
+      }
     }
     
-    // STEP 2: Generate appropriate response based on intent
+    console.log('Final Intent:', intentResult);
+    
+    // STEP 4: Generate response based on intent
     let finalResponse;
     
-    // Add extra validation for rejection detection
-    const userMessage = context.lastUserMessage.toLowerCase();
-    const strongRejectWords = ['ماعبالي', 'ما بدي', 'مابدي', 'مش عايز', 'لا شكرا', 'ندردش', 'احكي', 'نتسلى'];
-    const hasStrongReject = strongRejectWords.some(word => userMessage.includes(word));
-    
-    if ((intentResult.intent === 'MENU_INTENT' || intentResult.intent === 'MIXED_INTENT') && !hasStrongReject) {
-      // Load menu and generate menu response
+    if (intentResult.intent === 'MENU_INTENT') {
       const digest = await buildMenuDigest();
-      const menuPrompt = buildMenuResponsePrompt(context, digest);
+      const menuPrompt = buildSmartMenuPrompt(context, digest, intentResult.targetCategory);
       const menuRawResponse = await callGemini(apiKey, menuPrompt);
       const menuResponse = parseJsonResponse(menuRawResponse);
       finalResponse = validateMenuResponse(menuResponse, digest);
       
     } else {
-      // Generate chat response (including cases with strong rejection)
-      const chatPrompt = buildChatResponsePrompt(context);
+      const chatPrompt = buildSmartChatPrompt(context);
       const chatRawResponse = await callGemini(apiKey, chatPrompt);
       const chatResponse = parseJsonResponse(chatRawResponse);
       finalResponse = validateChatResponse(chatResponse);
     }
     
-    // Fallback if validation fails
+    // Enhanced fallback
     if (!finalResponse) {
-      finalResponse = {
-        reply: 'أهلين وسهلين! كيف بقدر ساعدك اليوم؟',
-        suggestions: []
-      };
+      if (intentResult.intent === 'MENU_INTENT') {
+        finalResponse = {
+          reply: 'أهلين وسهلين! شو حابب اقترح لك من قائمتنا؟',
+          suggestions: []
+        };
+      } else {
+        finalResponse = {
+          reply: 'أهلين فيك! شو اخبارك اليوم؟',
+          suggestions: []
+        };
+      }
     }
     
     res.status(200).json(finalResponse);
