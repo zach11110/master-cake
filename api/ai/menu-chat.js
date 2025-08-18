@@ -1,5 +1,5 @@
-// ULTRA-SMART MENU ASSISTANT: Simplified and Robust Version
-// Fixed JSON parsing, better error handling, and smarter responses
+// ULTRA-SMART MENU ASSISTANT: Full AI Control with Error-Free Execution
+// Complete AI autonomy with robust error handling
 
 let MENU_CACHE = { digest: null, expiresAt: 0 };
 const RATE_BUCKET = new Map();
@@ -57,14 +57,13 @@ async function buildMenuDigest() {
     }
   } catch (e) {
     console.error('Menu load error:', e);
-    // Return a default menu structure
-    return { sections: {}, allItems: [] };
+    return { sections: {}, allItems: [], itemLookup: {} };
   }
   
   const digest = { 
     sections: {},
     allItems: [],
-    byName: {} // Add lookup by name
+    itemLookup: {} // For quick lookups
   };
   
   if (manifest && manifest.sections) {
@@ -78,7 +77,8 @@ async function buildMenuDigest() {
         badge: it.badge || '',
         images: Array.isArray(it.images) ? it.images : [],
         category: key,
-        sectionNameAr: sec.ar || key
+        sectionNameAr: sec.ar || key,
+        sectionNameEn: sec.en || key
       }));
       
       digest.sections[key] = { 
@@ -87,15 +87,15 @@ async function buildMenuDigest() {
         items: items 
       };
       
-      // Add to flat list and name lookup
+      // Build lookup structures
       items.forEach(item => {
         digest.allItems.push(item);
-        const nameLower = item.arName.toLowerCase();
-        digest.byName[nameLower] = item;
-        // Also add partial matches
-        if (nameLower.includes('بوظة')) digest.byName['بوظة'] = item;
-        if (nameLower.includes('آيس كريم')) digest.byName['آيس كريم'] = item;
-        if (nameLower.includes('كريب')) digest.byName['كريب'] = item;
+        // Multiple lookup keys for flexibility
+        digest.itemLookup[item.arName.toLowerCase()] = item;
+        digest.itemLookup[item.id.toLowerCase()] = item;
+        if (item.enName) {
+          digest.itemLookup[item.enName.toLowerCase()] = item;
+        }
       });
     }
   }
@@ -104,286 +104,191 @@ async function buildMenuDigest() {
   return digest;
 }
 
-// Simplified intent detection without AI for reliability
-function detectUserIntent(message, context, menuDigest) {
-  const msg = message.toLowerCase().trim();
-  
-  // Temperature preferences
-  const wantsCold = ['بارد', 'منعش', 'ice', 'cold', 'بردني', 'بوظة', 'آيس كريم'].some(k => msg.includes(k));
-  const wantsHot = ['دافي', 'ساخن', 'سخن', 'hot', 'warm', 'قهوة', 'شاي'].some(k => msg.includes(k)) && !msg.includes('بارد');
-  
-  // Check for menu-related keywords
-  const menuKeywords = [
-    'عبالي', 'بدي', 'شو عندكم', 'اقترح', 'في عندكم', 'شو في',
-    'جوعان', 'عطشان', 'حلويات', 'مشاريب', 'بوظة', 'آيس', 
-    'قهوة', 'شاي', 'أركيلة', 'كريب', 'عندكم', 'في شي'
-  ];
-  const hasMenuIntent = menuKeywords.some(k => msg.includes(k));
-  
-  // Check for specific item questions
-  const questionWords = ['شو هي', 'شو هو', 'شو هيدي', 'شو هاد', 'كيف', 'ايش'];
-  const isAskingAboutItem = questionWords.some(k => msg.includes(k));
-  
-  // Check for personal questions
-  const personalQuestions = ['مين انت', 'شو اسمك', 'عمرك', 'وين ساكن', 'شخصي'];
-  const isPersonalQuestion = personalQuestions.some(k => msg.includes(k));
-  
-  // Check for greetings
-  const greetings = ['مرحبا', 'هاي', 'أهلين', 'السلام عليكم', 'صباح', 'مساء'];
-  const isGreeting = greetings.some(k => msg.includes(k));
-  
-  // Check for negative responses
-  const negatives = ['لا', 'ما بدي', 'مابدي', 'مش عايز', 'بكفي'];
-  const isNegative = negatives.some(k => msg.includes(k));
-  
-  // Determine intent
-  let intent = 'CHAT';
-  let mood = 'neutral';
-  let specificItem = null;
-  
-  if (hasMenuIntent && !isNegative) {
-    intent = 'MENU';
-    if (wantsCold) mood = 'wanting_cold';
-    else if (wantsHot) mood = 'wanting_hot';
-  } else if (isAskingAboutItem && context.lastSuggestedItems.length > 0) {
-    intent = 'ITEM_QUESTION';
-    // Try to find which item they're asking about
-    for (const item of context.lastSuggestedItems) {
-      if (msg.includes(item.toLowerCase())) {
-        specificItem = item;
-        break;
-      }
-    }
-    if (!specificItem && context.lastSuggestedItems.length > 0) {
-      specificItem = context.lastSuggestedItems[0]; // Assume asking about first item
-    }
-  } else if (isPersonalQuestion) {
-    intent = 'PERSONAL';
-  } else if (isGreeting) {
-    intent = 'GREETING';
-  } else if (msg.length < 10 && !hasMenuIntent) {
-    intent = 'CHAT';
-  }
-  
-  return {
-    intent,
-    mood,
-    wantsCold,
-    wantsHot,
-    specificItem,
-    confidence: 0.8
-  };
-}
-
-// Extract context from conversation
+// Extract comprehensive context
 function extractContext(messages, sessionId) {
   const state = CONVERSATION_STATE.get(sessionId) || {
     suggestedItems: new Set(),
     lastSuggestedItems: [],
-    conversationCount: 0
+    discussedTopics: [],
+    moodHistory: [],
+    conversationTurns: 0
   };
   
-  const recentMessages = messages.slice(-5);
-  const lastUserMessage = recentMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
-  const lastAssistantMessage = recentMessages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
+  const recentMessages = messages.slice(-8);
   
-  // Extract suggested items from last assistant message
-  const itemMatches = lastAssistantMessage.match(/\*\*(.*?)\*\*/g);
-  if (itemMatches) {
-    state.lastSuggestedItems = itemMatches.map(m => m.replace(/\*\*/g, '').trim());
-    state.lastSuggestedItems.forEach(item => state.suggestedItems.add(item));
+  // Extract suggested items from conversation
+  recentMessages.forEach(msg => {
+    if (msg.role === 'assistant') {
+      const itemMatches = msg.content?.match(/\*\*(.*?)\*\*/g);
+      if (itemMatches) {
+        itemMatches.forEach(match => {
+          const item = match.replace(/\*\*/g, '').trim();
+          if (item && !item.match(/^\d+$/)) {
+            state.suggestedItems.add(item);
+          }
+        });
+      }
+    }
+  });
+  
+  // Update last suggested items
+  const lastAssistantMsg = recentMessages.filter(m => m.role === 'assistant').slice(-1)[0];
+  if (lastAssistantMsg) {
+    const itemMatches = lastAssistantMsg.content?.match(/\*\*(.*?)\*\*/g);
+    if (itemMatches) {
+      state.lastSuggestedItems = itemMatches.map(m => m.replace(/\*\*/g, '').trim());
+    }
   }
   
-  state.conversationCount++;
+  state.conversationTurns++;
   CONVERSATION_STATE.set(sessionId, state);
   
   return {
-    lastUserMessage,
-    lastAssistantMessage,
+    messages: recentMessages,
+    lastUserMessage: recentMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '',
     suggestedItems: Array.from(state.suggestedItems),
     lastSuggestedItems: state.lastSuggestedItems,
-    conversationCount: state.conversationCount,
-    messages: recentMessages
+    conversationTurns: state.conversationTurns,
+    fullConversation: recentMessages.map(m => `${m.role}: ${m.content}`).join('\n')
   };
 }
 
-// Generate menu suggestions based on mood
-function generateMenuSuggestions(mood, context, menuDigest) {
-  const suggested = new Set(context.suggestedItems);
-  const suggestions = [];
-  
-  // Determine which categories to search
-  let targetCategories = [];
-  if (mood === 'wanting_cold') {
-    targetCategories = ['cold_drinks', 'ice_cream'];
-  } else if (mood === 'wanting_hot') {
-    targetCategories = ['hot_drinks'];
-  } else {
-    targetCategories = ['cold_drinks', 'hot_drinks', 'sweets', 'ice_cream'];
-  }
-  
-  // Find items not yet suggested
-  for (const cat of targetCategories) {
-    if (menuDigest.sections[cat]) {
-      for (const item of menuDigest.sections[cat].items) {
-        if (!suggested.has(item.arName) && suggestions.length < 2) {
-          suggestions.push({
-            ...item,
-            category: cat,
-            categoryName: menuDigest.sections[cat].ar
-          });
-        }
-      }
-    }
-  }
-  
-  // If no new items, pick random from appropriate categories
-  if (suggestions.length === 0) {
-    for (const cat of targetCategories) {
-      if (menuDigest.sections[cat] && menuDigest.sections[cat].items.length > 0) {
-        const items = menuDigest.sections[cat].items;
-        const randomItem = items[Math.floor(Math.random() * items.length)];
-        suggestions.push({
-          ...randomItem,
-          category: cat,
-          categoryName: menuDigest.sections[cat].ar
-        });
-        if (suggestions.length >= 2) break;
-      }
-    }
-  }
-  
-  return suggestions.slice(0, 2);
-}
+// Single unified AI handler with full control
+async function generateSmartResponse(context, menuDigest, apiKey) {
+  // Build menu summary for AI
+  const menuSummary = Object.entries(menuDigest.sections).map(([key, section]) => {
+    const items = section.items.slice(0, 5).map(item => 
+      `  - ${item.arName}${item.price ? ` (${item.price} ل.س)` : ''}`
+    ).join('\n');
+    return `${section.ar}:\n${items}`;
+  }).join('\n\n');
 
-// Generate response using Gemini (simplified prompts)
-async function generateAIResponse(type, context, data, apiKey) {
-  let prompt = '';
-  
-  switch (type) {
-    case 'MENU':
-      const mood = data.mood === 'wanting_cold' ? 'يريد شيء بارد' : 
-                   data.mood === 'wanting_hot' ? 'يريد شيء دافئ' : 'عادي';
-      
-      prompt = `أنت نادل في مقهى. المستخدم ${mood}.
-رسالته: "${context.lastUserMessage}"
+  const systemPrompt = `أنت "ماستر" - نادل ذكي ومحترف في مقهى "بوظة ماستر كيك". شخصيتك ودودة وذكية ومرحة باللهجة السورية.
 
-اقترح هذه العناصر:
-${data.suggestions.map(s => `- ${s.arName} (${s.price} ل.س)`).join('\n')}
+**هويتك:**
+- اسمك: ماستر
+- وظيفتك: نادل ومساعد في المقهى
+- شخصيتك: ودود، ذكي، مرح، محترف
+- طريقة كلامك: لهجة سورية طبيعية وعفوية
 
-اكتب رد قصير وودود باللهجة السورية. اذكر الأسماء والأسعار.
-مثال: "يا هلا! شو رأيك جرب [اسم] ب[سعر] ل.س، كتير طيب!"
+**القائمة المتاحة:**
+${menuSummary}
 
-رد بجملة واحدة فقط:`;
-      break;
-      
-    case 'ITEM_QUESTION':
-      prompt = `المستخدم يسأل عن: ${data.item.arName}
-التفاصيل: ${data.item.desc || 'لا يوجد وصف'}
-السعر: ${data.item.price || 'غير محدد'}
+**العناصر المقترحة سابقاً (حاول عدم تكرارها):**
+${context.suggestedItems.join(', ') || 'لا يوجد'}
 
-اشرح بجملة قصيرة وودودة باللهجة السورية:`;
-      break;
-      
-    case 'GREETING':
-      prompt = `رد على التحية باللهجة السورية بجملة ودودة قصيرة:
-"${context.lastUserMessage}"
+**مهمتك:** حلل رسالة المستخدم وحدد النية والرد المناسب.
 
-مثال: "أهلين وسهلين! كيفك اليوم؟"`;
-      break;
-      
-    case 'PERSONAL':
-      prompt = `المستخدم يسأل سؤال شخصي. أنت "ماستر" مساعد المقهى.
-رد بلطف واختصار أنك مساعد المقهى هنا لخدمته.`;
-      break;
-      
-    default:
-      prompt = `دردش بود مع المستخدم باللهجة السورية. رد قصير على:
-"${context.lastUserMessage}"`;
-  }
-  
+**القواعد:**
+
+1. **تحليل النية:**
+   - إذا ذكر أي شيء عن الطعام/الشراب/الطقس/المزاج/الجوع/العطش → اقترح من القائمة
+   - إذا سأل عن عنصر محدد → اشرح تفاصيله
+   - إذا سأل سؤال شخصي عنك → أجب كماستر النادل
+   - إذا دردشة عامة → تحدث بود دون ذكر الطعام
+
+2. **الاقتراحات:**
+   - إذا طلب "بارد" أو ذكر الحر → اقترح من المشروبات الباردة والآيس كريم فقط
+   - إذا ذكر "بردان" أو البرد → اقترح من المشروبات الساخنة
+   - اقترح 1-2 عناصر مناسبة مع ذكر السعر
+   - اجعل أسماء العناصر بين ** دائماً
+
+3. **طريقة الرد:**
+   - استخدم اللهجة السورية العفوية
+   - كن ودود ومرح
+   - ردود قصيرة ومركزة (2-3 جمل)
+   - تفاعل مع مزاج المستخدم
+
+**المحادثة:**
+${context.fullConversation}
+
+**آخر رسالة:** "${context.lastUserMessage}"
+
+حلل الموقف واكتب ردك المناسب مباشرة. لا تكتب JSON أو أي تنسيق خاص، فقط الرد الطبيعي.`;
+
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        contents: [{ role: 'user', parts: [{ text: prompt }] }], 
+        contents: [{ 
+          role: 'user', 
+          parts: [{ text: systemPrompt }] 
+        }], 
         generationConfig: { 
-          temperature: 0.7,
-          maxOutputTokens: 150,
-          topP: 0.8
+          temperature: 0.8,
+          maxOutputTokens: 400,
+          topP: 0.9,
+          topK: 40
         } 
       })
     });
     
     if (!resp.ok) {
       console.error('Gemini API error:', resp.status);
-      return null;
+      throw new Error(`API error: ${resp.status}`);
     }
     
     const data = await resp.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    return text.trim();
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    if (!reply) {
+      throw new Error('Empty AI response');
+    }
+    
+    return reply.trim();
+    
   } catch (error) {
     console.error('AI generation error:', error);
-    return null;
+    
+    // Smart fallback based on context
+    const msg = context.lastUserMessage.toLowerCase();
+    
+    if (msg.includes('مرحبا') || msg.includes('هاي')) {
+      return 'أهلين وسهلين! نورت المقهى! شو بتحب تطلب اليوم؟';
+    } else if (msg.includes('كيفك')) {
+      return 'الحمدلله تمام! أنا ماستر، جاهز لخدمتك. شو عبالك تجرب من عندنا؟';
+    } else if (msg.includes('بارد') || msg.includes('حر')) {
+      return 'يا الله شو هالحر! شو رايك **آيسد أمريكانو** (25000 ل.س) منعش كتير، أو **آيس كريم كيكة الماستر** (15000 ل.س)؟';
+    } else if (msg.includes('عمرك') || msg.includes('مين انت')) {
+      return 'أنا ماستر، نادلك المفضل هون بالمقهى! موجود دايماً لخدمتك وأساعدك تختار أطيب شي من عندنا.';
+    } else {
+      return 'تكرم عيونك! كيف بقدر ساعدك اليوم؟';
+    }
   }
 }
 
-// Format final response
-function formatResponse(intent, aiReply, suggestions = []) {
-  // Clean up AI reply
-  let reply = aiReply || '';
+// Extract suggestions from AI reply for structured response
+function extractSuggestionsFromReply(reply, menuDigest) {
+  const suggestions = [];
+  const itemMatches = reply.match(/\*\*(.*?)\*\*/g);
   
-  // Add default replies if AI failed
-  if (!reply) {
-    switch (intent) {
-      case 'MENU':
-        reply = suggestions.length > 0 ? 
-          `شو رأيك تجرب ${suggestions.map(s => `**${s.arName}** (${s.price} ل.س)`).join(' أو ')}؟` :
-          'أهلين! شو حابب تطلب اليوم؟';
-        break;
-      case 'GREETING':
-        reply = 'أهلين وسهلين! كيف بقدر ساعدك؟';
-        break;
-      case 'PERSONAL':
-        reply = 'أنا ماستر، مساعدك في المقهى. كيف بقدر أخدمك؟';
-        break;
-      case 'ITEM_QUESTION':
-        reply = 'هاد العنصر كتير طيب! جربه وما رح تندم.';
-        break;
-      default:
-        reply = 'تكرم عيونك! شو بتحب؟';
-    }
+  if (itemMatches) {
+    itemMatches.forEach(match => {
+      const itemName = match.replace(/\*\*/g, '').trim();
+      
+      // Find in menu
+      const item = menuDigest.itemLookup[itemName.toLowerCase()];
+      if (item) {
+        suggestions.push({
+          id: item.id,
+          category: item.category,
+          arName: item.arName,
+          enName: item.enName,
+          price: item.price || 'السعر غير محدد',
+          description: item.desc,
+          badge: item.badge || '',
+          images: item.images || []
+        });
+      }
+    });
   }
   
-  // Format suggestions for response
-  const formattedSuggestions = suggestions.map(s => ({
-    id: s.id,
-    category: s.category,
-    arName: s.arName,
-    enName: s.enName,
-    price: s.price || 'السعر غير محدد',
-    description: s.desc,
-    badge: s.badge || '',
-    images: s.images || []
-  }));
-  
-  // Make sure item names in reply are bold
-  suggestions.forEach(s => {
-    if (!reply.includes(`**${s.arName}**`)) {
-      reply = reply.replace(s.arName, `**${s.arName}**`);
-    }
-  });
-  
-  return {
-    reply: reply.slice(0, 500),
-    suggestions: formattedSuggestions
-  };
+  return suggestions;
 }
 
-// MAIN HANDLER
+// MAIN HANDLER - Streamlined
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -411,84 +316,42 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: 'Service configuration error' });
+    return res.status(500).json({ 
+      reply: 'عذراً، المساعد غير متوفر حالياً. جرب بعد شوي.',
+      suggestions: [] 
+    });
   }
 
   try {
-    // Load menu
+    // Step 1: Load menu
     const menuDigest = await buildMenuDigest();
     
-    // Extract context
+    // Step 2: Extract context
     const context = extractContext(messages, sessionId);
     
-    // Detect intent
-    const intentResult = detectUserIntent(context.lastUserMessage, context, menuDigest);
+    console.log('Processing message:', context.lastUserMessage);
     
-    console.log('Intent:', intentResult.intent, 'Mood:', intentResult.mood);
+    // Step 3: Generate AI response with full control
+    const aiReply = await generateSmartResponse(context, menuDigest, apiKey);
     
-    let response = { reply: '', suggestions: [] };
+    // Step 4: Extract structured suggestions from reply
+    const suggestions = extractSuggestionsFromReply(aiReply, menuDigest);
     
-    switch (intentResult.intent) {
-      case 'MENU':
-        // Get menu suggestions
-        const suggestions = generateMenuSuggestions(intentResult.mood, context, menuDigest);
-        
-        // Generate AI response
-        const menuReply = await generateAIResponse('MENU', context, {
-          mood: intentResult.mood,
-          suggestions
-        }, apiKey);
-        
-        response = formatResponse('MENU', menuReply, suggestions);
-        break;
-        
-      case 'ITEM_QUESTION':
-        // Find the item details
-        let itemDetails = null;
-        if (intentResult.specificItem) {
-          itemDetails = menuDigest.byName[intentResult.specificItem.toLowerCase()];
-        }
-        
-        if (itemDetails) {
-          const itemReply = await generateAIResponse('ITEM_QUESTION', context, {
-            item: itemDetails
-          }, apiKey);
-          response = formatResponse('ITEM_QUESTION', itemReply);
-        } else {
-          // Fallback to menu suggestions
-          const suggestions = generateMenuSuggestions('neutral', context, menuDigest);
-          const menuReply = await generateAIResponse('MENU', context, {
-            mood: 'neutral',
-            suggestions
-          }, apiKey);
-          response = formatResponse('MENU', menuReply, suggestions);
-        }
-        break;
-        
-      case 'GREETING':
-        const greetReply = await generateAIResponse('GREETING', context, {}, apiKey);
-        response = formatResponse('GREETING', greetReply);
-        break;
-        
-      case 'PERSONAL':
-        const personalReply = await generateAIResponse('PERSONAL', context, {}, apiKey);
-        response = formatResponse('PERSONAL', personalReply);
-        break;
-        
-      case 'CHAT':
-      default:
-        const chatReply = await generateAIResponse('CHAT', context, {}, apiKey);
-        response = formatResponse('CHAT', chatReply);
-        break;
-    }
+    // Step 5: Format final response
+    const finalResponse = {
+      reply: aiReply.slice(0, 500),
+      suggestions: suggestions.slice(0, 3) // Max 3 suggestions
+    };
     
-    console.log('Response:', response.reply.slice(0, 100));
-    res.status(200).json(response);
+    console.log('Response:', finalResponse.reply.slice(0, 100));
+    res.status(200).json(finalResponse);
     
   } catch (error) {
     console.error('Handler error:', error);
+    
+    // Emergency fallback
     res.status(200).json({ 
-      reply: 'أهلين! كيف بقدر ساعدك اليوم؟',
+      reply: 'أهلين وسهلين! معليش في مشكلة تقنية صغيرة. شو بتحب من عندنا؟ عنا قهوة وشاي ومشروبات باردة وحلويات!',
       suggestions: []
     });
   }
