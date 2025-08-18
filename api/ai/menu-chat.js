@@ -1,9 +1,9 @@
-// ULTRA-SMART MENU ASSISTANT: Advanced Intent & Mood Detection System
-// Two-stage AI processing with context-aware responses
+// ULTRA-SMART MENU ASSISTANT: Enhanced Intent & Mood Detection System
+// Fixed mood detection and item validation
 
 let MENU_CACHE = { digest: null, expiresAt: 0 };
 const RATE_BUCKET = new Map();
-const CONVERSATION_STATE = new Map(); // Track conversation state per session
+const CONVERSATION_STATE = new Map();
 
 function nowMs() { return Date.now(); }
 
@@ -45,7 +45,11 @@ async function buildMenuDigest() {
     manifest = null;
   }
   
-  const digest = { sections: {} };
+  const digest = { 
+    sections: {},
+    allItems: [] // Add flat list for easy searching
+  };
+  
   if (manifest && manifest.sections) {
     for (const [key, sec] of Object.entries(manifest.sections)) {
       const compactItems = (sec.items || []).slice(0, 200).map((it) => ({
@@ -58,15 +62,53 @@ async function buildMenuDigest() {
         images: it.images || [],
         category: key
       }));
+      
       digest.sections[key] = { 
         ar: sec.ar || key, 
         en: sec.en || key, 
         items: compactItems 
       };
+      
+      // Add to flat list
+      compactItems.forEach(item => {
+        digest.allItems.push({...item, sectionNameAr: sec.ar, sectionNameEn: sec.en});
+      });
     }
   }
+  
   MENU_CACHE = { digest, expiresAt: nowMs() + 5 * 60 * 1000 };
   return digest;
+}
+
+// Quick keyword-based intent check (before AI)
+function quickIntentCheck(message) {
+  const msg = message.toLowerCase();
+  
+  // CRITICAL: Check for temperature preferences FIRST
+  const coldKeywords = ['بارد', 'برد', 'منعش', 'بردان', 'حر', 'سخونة', 'ice', 'cold'];
+  const hotKeywords = ['دافي', 'سخن', 'ساخن', 'دفا', 'hot', 'warm'];
+  
+  let temperaturePreference = null;
+  if (coldKeywords.some(k => msg.includes(k))) {
+    temperaturePreference = 'cold';
+  } else if (hotKeywords.some(k => msg.includes(k))) {
+    temperaturePreference = 'hot';
+  }
+  
+  // Menu intent keywords
+  const menuKeywords = [
+    'عبالي', 'بدي', 'شو عندكم', 'اقترح', 'في عندكم', 'شو في',
+    'جوعان', 'عطشان', 'حلويات', 'مشاريب', 'بوظة', 'آيس كريم', 
+    'قهوة', 'شاي', 'أركيلة', 'كريب', 'menu', 'suggest'
+  ];
+  
+  const hasMenuIntent = menuKeywords.some(k => msg.includes(k));
+  
+  return {
+    hasMenuIntent,
+    temperaturePreference,
+    quickCheck: true
+  };
 }
 
 // Extract comprehensive context from conversation
@@ -76,30 +118,42 @@ function extractFullContext(messages, sessionId) {
     suggestedItems: [],
     discussedItems: [],
     lastIntent: null,
-    moodHistory: []
+    moodHistory: [],
+    temperaturePreference: null
   };
   
-  // Extract all mentioned items from conversation
+  // Extract all mentioned items
   const mentionedItems = new Set();
   const suggestedItems = new Set();
   
   recentMessages.forEach(msg => {
     const content = msg.content || '';
-    // Extract items mentioned by assistant (between **)
-    const itemMatches = content.match(/\*\*(.*?)\*\*/g);
-    if (itemMatches && msg.role === 'assistant') {
-      itemMatches.forEach(match => {
-        const item = match.replace(/\*\*/g, '').trim();
-        if (item.length > 2) {
-          suggestedItems.add(item);
-          mentionedItems.add(item.toLowerCase());
-        }
-      });
+    
+    // Check for temperature preferences in all messages
+    const quickCheck = quickIntentCheck(content);
+    if (quickCheck.temperaturePreference) {
+      sessionState.temperaturePreference = quickCheck.temperaturePreference;
     }
-    // Extract any item names mentioned in general
+    
+    // Extract items mentioned by assistant
+    if (msg.role === 'assistant') {
+      const itemMatches = content.match(/\*\*(.*?)\*\*/g);
+      if (itemMatches) {
+        itemMatches.forEach(match => {
+          const item = match.replace(/\*\*/g, '').trim();
+          if (item.length > 2 && !item.match(/^\d+$/)) {
+            suggestedItems.add(item);
+            mentionedItems.add(item.toLowerCase());
+          }
+        });
+      }
+    }
+    
+    // Extract items mentioned by user
     if (msg.role === 'user') {
       const lowerContent = content.toLowerCase();
-      ['كابتشينو', 'شاي', 'بوظة', 'آيس كريم', 'أركيلة', 'كريب', 'تشيزكيك'].forEach(item => {
+      const menuItems = ['كابتشينو', 'شاي', 'بوظة', 'آيس كريم', 'أركيلة', 'كريب', 'تشيزكيك', 'ايسد امريكانو'];
+      menuItems.forEach(item => {
         if (lowerContent.includes(item)) {
           mentionedItems.add(item);
         }
@@ -107,14 +161,12 @@ function extractFullContext(messages, sessionId) {
     }
   });
   
-  // Build conversation flow
   const conversationFlow = recentMessages.map(msg => ({
     role: msg.role,
     content: msg.content || '',
     timestamp: msg.timestamp || null
   }));
   
-  // Get last messages
   const lastUserMessage = recentMessages.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
   const lastAssistantMessage = recentMessages.filter(m => m.role === 'assistant').slice(-1)[0]?.content || '';
   const previousUserMessages = recentMessages.filter(m => m.role === 'user').slice(-3).map(m => m.content);
@@ -132,80 +184,97 @@ function extractFullContext(messages, sessionId) {
     suggestedItems: Array.from(suggestedItems),
     discussedItems: Array.from(mentionedItems),
     conversationLength: messages.length,
-    sessionState
+    sessionState,
+    temperaturePreference: sessionState.temperaturePreference
   };
 }
 
-// STAGE 1: AI Intent & Mood Detection
-async function detectIntentAndMood(context, apiKey) {
-  const prompt = `أنت محلل نوايا ومشاعر متخصص في المحادثات السورية لمقهى وبوظة.
+// STAGE 1: Enhanced AI Intent & Mood Detection
+async function detectIntentAndMood(context, menuDigest, apiKey) {
+  // Quick check first
+  const quickCheck = quickIntentCheck(context.lastUserMessage);
+  
+  // Build item list for AI
+  const availableItems = menuDigest.allItems.map(item => 
+    `${item.arName} (${item.sectionNameAr})`
+  ).join(', ');
+  
+  const prompt = `أنت محلل نوايا ومشاعر دقيق جداً لمقهى وبوظة.
 
-**تحليل المحادثة:**
+**رسالة المستخدم الأخيرة:** "${context.lastUserMessage}"
+
+**السياق:**
 آخر 3 رسائل:
 ${context.conversationFlow.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n')}
 
-**العناصر المذكورة سابقاً:** ${context.discussedItems.join(', ') || 'لا يوجد'}
 **العناصر المقترحة سابقاً:** ${context.suggestedItems.join(', ') || 'لا يوجد'}
+**تفضيل الحرارة المكتشف:** ${context.temperaturePreference || 'غير محدد'}
 
-**آخر رسالة للتحليل:** "${context.lastUserMessage}"
+**العناصر المتاحة في القائمة:**
+${availableItems}
 
-**مهمتك:** حلل النية والمزاج بدقة عالية.
+**قواعد حاسمة للنية:**
+1. MENU_INTENT إذا:
+   - ذكر أي طعام أو شراب (بوظة، آيس كريم، قهوة، شاي، حلويات، مشاريب)
+   - طلب اقتراحات (شو عندكم، اقترح علي، في شي)
+   - ذكر الحرارة أو البرد (بارد، حر، دافي، منعش)
+   - ذكر الجوع أو العطش
+   
+2. ITEM_FOLLOWUP_INTENT إذا:
+   - سأل عن عنصر محدد موجود في القائمة
+   - طلب تفاصيل عن عنصر مذكور
+   
+3. CHAT_INTENT إذا:
+   - محادثة عامة بدون ذكر أي طعام
+   - رفض واضح (ما بدي، مش جوعان)
 
-**أنواع النوايا:**
-1. MENU_INTENT: المستخدم يريد اقتراحات أو يذكر أي شيء متعلق بـ:
-   - طلب مباشر للقائمة (شو عندكم، اقترح علي، بدي اشرب شي)
-   - ذكر الطقس/الحرارة/البرد (حر اليوم، برد، الجو حلو)
-   - ذكر المزاج المرتبط بالطعام (جوعان، عطشان، عبالي حلو)
-   - ذكر وقت اليوم (صباح، مساء، غداء)
-   - ذكر المقهى أو الجلسة (قاعد بالمقهى، جاي عالمحل)
-   - أي سؤال عن الأسعار أو العروضات
+**قواعد حاسمة للمزاج:**
+- إذا قال "بارد" أو "عبالي شي بارد" أو "حر" = wanting_cold (يريد شيء بارد)
+- إذا قال "بردان" أو "دافي" = wanting_hot (يريد شيء دافئ)
+- إذا قال "جوعان" = hungry
+- إذا قال "عطشان" = thirsty
+- إذا قال "تعبان" = tired
+- إذا قال "مبسوط" = happy
+- إذا قال "زعلان" = sad
+- إذا قال "مضغوط" = stressed
+- غير ذلك = neutral
 
-2. ITEM_FOLLOWUP_INTENT: المستخدم يسأل عن عنصر محدد تم ذكره:
-   - سؤال عن السعر لعنصر مذكور
-   - سؤال عن المكونات أو الوصف
-   - طلب توضيح عن عنصر محدد
-   - مقارنة بين عناصر
-
-3. CHAT_INTENT: محادثة عامة لا علاقة لها بالمقهى:
-   - مواضيع شخصية (كيفك، شو اخبارك)
-   - مواضيع عامة (السياسة، الرياضة، الأخبار)
-   - رفض صريح (ما بدي شي، مش جوعان)
-
-**أنواع المزاج:**
-- happy: سعيد، مبسوط، فرحان
-- sad: حزين، زعلان، مكتئب
-- tired: تعبان، مرهق، نعسان
-- energetic: نشيط، حماسي
-- hot: حران، حر عليه
-- cold: بردان، برد عليه
-- hungry: جوعان
-- thirsty: عطشان
-- relaxed: مرتاح، هادي
-- stressed: متوتر، مضغوط
-- neutral: عادي، محايد
-
-**قواعد مهمة:**
-- إذا ذكر المستخدم أي شيء عن الطقس أو درجة الحرارة = MENU_INTENT
-- إذا قال "في شي لسا" أو "كمان" بعد اقتراحات = MENU_INTENT
-- إذا سأل عن عنصر محدد موجود في discussedItems = ITEM_FOLLOWUP_INTENT
-- إذا المحادثة عن مواضيع عامة بدون ذكر طعام = CHAT_INTENT
+**العنصر المحدد:**
+إذا ذكر المستخدم اسم عنصر من القائمة، اكتبه في specificItem
 
 رد بـ JSON فقط:
 {
   "intent": "MENU_INTENT|ITEM_FOLLOWUP_INTENT|CHAT_INTENT",
   "confidence": 0.0-1.0,
-  "mood": "happy|sad|tired|energetic|hot|cold|hungry|thirsty|relaxed|stressed|neutral",
+  "mood": "wanting_cold|wanting_hot|hungry|thirsty|tired|happy|sad|stressed|neutral",
   "moodConfidence": 0.0-1.0,
-  "contextClues": ["قائمة الأدلة التي استخدمتها"],
-  "specificItem": "اسم العنصر إذا كان السؤال عنه" أو null,
-  "reasoning": "شرح مفصل للقرار"
+  "contextClues": ["الأدلة"],
+  "specificItem": "اسم العنصر إن وجد" أو null,
+  "temperaturePreference": "cold|hot|neutral",
+  "reasoning": "شرح القرار"
 }`;
 
   try {
     const response = await callGemini(apiKey, prompt);
     const parsed = parseJsonResponse(response);
+    
     if (parsed) {
-      // Update session mood history
+      // Override with quick check if high confidence
+      if (quickCheck.hasMenuIntent && parsed.intent === 'CHAT_INTENT') {
+        parsed.intent = 'MENU_INTENT';
+        parsed.reasoning = 'Overridden by keyword detection';
+      }
+      
+      if (quickCheck.temperaturePreference) {
+        parsed.temperaturePreference = quickCheck.temperaturePreference;
+        if (quickCheck.temperaturePreference === 'cold') {
+          parsed.mood = 'wanting_cold';
+        } else if (quickCheck.temperaturePreference === 'hot') {
+          parsed.mood = 'wanting_hot';
+        }
+      }
+      
+      // Update session
       if (parsed.mood && context.sessionState) {
         context.sessionState.moodHistory.push(parsed.mood);
         if (context.sessionState.moodHistory.length > 5) {
@@ -213,73 +282,125 @@ ${context.conversationFlow.slice(-3).map(m => `${m.role}: ${m.content}`).join('\
         }
         context.sessionState.lastIntent = parsed.intent;
       }
+      
       return parsed;
     }
   } catch (error) {
     console.error('Intent detection error:', error);
   }
   
-  // Fallback
+  // Fallback with quick check
   return {
-    intent: 'CHAT_INTENT',
-    confidence: 0.5,
-    mood: 'neutral',
-    moodConfidence: 0.5,
-    contextClues: [],
+    intent: quickCheck.hasMenuIntent ? 'MENU_INTENT' : 'CHAT_INTENT',
+    confidence: 0.6,
+    mood: quickCheck.temperaturePreference === 'cold' ? 'wanting_cold' : 
+          quickCheck.temperaturePreference === 'hot' ? 'wanting_hot' : 'neutral',
+    moodConfidence: 0.6,
+    contextClues: ['Fallback to quick check'],
     specificItem: null,
-    reasoning: 'Fallback due to error'
+    temperaturePreference: quickCheck.temperaturePreference || 'neutral',
+    reasoning: 'Fallback due to error, using keyword detection'
   };
 }
 
 // STAGE 2A: Generate Menu Response based on mood
-async function generateMenuResponse(context, menuDigest, mood, apiKey) {
-  // Select items based on mood
-  const moodBasedSuggestions = getMoodBasedCategories(mood);
+async function generateMenuResponse(context, menuDigest, intentResult, apiKey) {
+  const mood = intentResult.mood;
+  const temperaturePref = intentResult.temperaturePreference || context.temperaturePreference;
   
-  const prompt = `أنت "ماستر" - نادل محترف ودود من بوظة ماستر كيك.
-
-**الموقف:** المستخدم ${getMoodDescription(mood)} ويريد اقتراحات.
-
-**مزاج المستخدم:** ${mood}
-**اقتراحات مناسبة للمزاج:** ${moodBasedSuggestions.join(', ')}
+  // Smart category selection based on mood AND temperature
+  let targetCategories = [];
+  
+  if (mood === 'wanting_cold' || temperaturePref === 'cold') {
+    targetCategories = ['cold_drinks', 'ice_cream'];
+  } else if (mood === 'wanting_hot' || temperaturePref === 'hot') {
+    targetCategories = ['hot_drinks'];
+  } else {
+    targetCategories = getMoodBasedCategories(mood);
+  }
+  
+  // Filter available items
+  const availableItems = [];
+  targetCategories.forEach(cat => {
+    if (menuDigest.sections[cat]) {
+      menuDigest.sections[cat].items.forEach(item => {
+        if (!context.suggestedItems.includes(item.arName)) {
+          availableItems.push({
+            ...item,
+            category: cat,
+            categoryName: menuDigest.sections[cat].ar
+          });
+        }
+      });
+    }
+  });
+  
+  const prompt = `أنت "ماستر" - نادل محترف من بوظة ماستر كيك.
 
 **رسالة المستخدم:** "${context.lastUserMessage}"
-**العناصر المقترحة سابقاً (لا تكررها):** ${context.suggestedItems.join(', ') || 'لا يوجد'}
+**مزاج المستخدم:** ${mood}
+**تفضيل الحرارة:** ${temperaturePref}
 
-**القائمة المتاحة:**
-${JSON.stringify(menuDigest, null, 2)}
+${mood === 'wanting_cold' || temperaturePref === 'cold' ? 
+  '**مهم جداً: المستخدم يريد شيء بارد/منعش فقط! لا تقترح أي شيء دافئ أو ساخن!**' :
+  mood === 'wanting_hot' || temperaturePref === 'hot' ?
+  '**مهم جداً: المستخدم يريد شيء دافئ/ساخن فقط! لا تقترح أي شيء بارد!**' :
+  ''
+}
 
-**قواعد ذهبية:**
-1. اقترح 1-2 عناصر فقط تناسب المزاج
-2. لا تكرر أي عنصر تم اقتراحه سابقاً
-3. اربط الاقتراح بمزاج المستخدم بطريقة ذكية
-4. اذكر السعر والوصف بشكل جذاب
-5. استخدم اللهجة السورية الدافئة
+**العناصر المناسبة المتاحة (اختر 1-2 فقط):**
+${JSON.stringify(availableItems.slice(0, 6), null, 2)}
 
-**أمثلة حسب المزاج:**
-- hot: "يا الله شو هالحر! خلينا نبردلك المزاج مع **آيسد أمريكانو** (25000 ل.س) منعش وقوي!"
-- tired: "شكلك تعبان، شو رايك **كابتشينو** (12500 ل.س) يفيقك ويحسن مزاجك؟"
-- happy: "ما شاء الله مبسوط! يلا نزيد الحلاوة مع **كريب الشوكولا** (15000 ل.س)!"
-- cold: "بردان؟ دفي حالك مع **شاي أخضر** (20000 ل.س) دافي ومريح!"
+**العناصر المقترحة سابقاً (لا تكررها أبداً):**
+${context.suggestedItems.join(', ') || 'لا يوجد'}
+
+**قواعد:**
+1. اقترح 1-2 عناصر فقط من القائمة المتاحة
+2. تأكد أن الاقتراح يناسب تفضيل الحرارة
+3. اذكر الاسم بين ** والسعر
+4. أضف وصف جذاب
+5. استخدم اللهجة السورية
+
+**أمثلة:**
+- wanting_cold: "يا سلام عبالك شي بارد! جرب **ايسد امريكانو** (25000 ل.س) منعش وقوي!"
+- wanting_hot: "بردان؟ دفي حالك مع **كابتشينو** (12500 ل.س) كريمي ولذيذ!"
 
 رد بـ JSON فقط:
 {
-  "reply": "رد مخصص حسب المزاج مع الاقتراحات",
+  "reply": "رد مع الاقتراحات",
   "suggestions": [
     {
       "id": "معرف العنصر",
       "category": "القسم",
-      "arName": "الاسم العربي",
+      "arName": "الاسم",
       "price": "السعر",
-      "reason": "سبب الاقتراح حسب المزاج"
+      "images": ["قائمة الصور"],
+      "reason": "سبب الاقتراح"
     }
-  ],
-  "moodResponse": true
+  ]
 }`;
 
   try {
     const response = await callGemini(apiKey, prompt);
-    return parseJsonResponse(response);
+    const parsed = parseJsonResponse(response);
+    
+    // Validate suggestions exist in menu
+    if (parsed && parsed.suggestions) {
+      parsed.suggestions = parsed.suggestions.map(sug => {
+        const found = availableItems.find(item => 
+          item.id === sug.id || item.arName === sug.arName
+        );
+        if (found) {
+          return {
+            ...sug,
+            images: found.images || []
+          };
+        }
+        return null;
+      }).filter(Boolean);
+    }
+    
+    return parsed;
   } catch (error) {
     console.error('Menu response error:', error);
     return null;
@@ -288,55 +409,60 @@ ${JSON.stringify(menuDigest, null, 2)}
 
 // STAGE 2B: Generate Item Followup Response
 async function generateItemFollowupResponse(context, menuDigest, specificItem, apiKey) {
-  // Find the specific item in menu
-  let itemDetails = null;
-  let itemCategory = null;
+  if (!specificItem) {
+    // Try to extract item from message
+    const msg = context.lastUserMessage.toLowerCase();
+    for (const item of menuDigest.allItems) {
+      if (msg.includes(item.arName.toLowerCase()) || 
+          (item.enName && msg.includes(item.enName.toLowerCase()))) {
+        specificItem = item.arName;
+        break;
+      }
+    }
+  }
   
-  for (const [category, section] of Object.entries(menuDigest.sections)) {
-    const found = section.items.find(item => 
-      item.arName.includes(specificItem) || 
-      item.enName?.toLowerCase().includes(specificItem.toLowerCase())
-    );
-    if (found) {
-      itemDetails = found;
-      itemCategory = category;
+  // Find item details
+  let itemDetails = null;
+  for (const item of menuDigest.allItems) {
+    if (item.arName === specificItem || 
+        item.arName.includes(specificItem) ||
+        (specificItem && item.arName.includes(specificItem))) {
+      itemDetails = item;
       break;
     }
   }
+  
+  if (!itemDetails) {
+    // Item not found - return menu intent instead
+    return null;
+  }
 
-  const prompt = `أنت "ماستر" - نادل محترف يجيب عن أسئلة العملاء.
+  const prompt = `أنت "ماستر" - نادل محترف.
 
-**السؤال:** المستخدم يسأل عن "${specificItem}"
+**المستخدم يسأل عن:** "${specificItem}"
 **رسالة المستخدم:** "${context.lastUserMessage}"
 
-${itemDetails ? `
 **تفاصيل العنصر:**
 - الاسم: ${itemDetails.arName}
-- السعر: ${itemDetails.price || 'غير محدد'}
-- الوصف: ${itemDetails.desc}
-- القسم: ${itemCategory}
+- السعر: ${itemDetails.price || 'السعر غير محدد'}
+- الوصف: ${itemDetails.desc || 'لا يوجد وصف'}
+- القسم: ${itemDetails.sectionNameAr}
 - العرض: ${itemDetails.badge || 'لا يوجد'}
-` : `**ملاحظة:** العنصر "${specificItem}" غير موجود في القائمة.`}
 
 **مهمتك:**
-1. أجب عن السؤال بدقة ووضوح
-2. لا تقترح أي عناصر جديدة
-3. ركز فقط على الإجابة عن السؤال
-4. استخدم اللهجة السورية الودودة
-
-**أمثلة:**
-- سؤال عن السعر: "**الكابتشينو** بـ 12500 ليرة بس!"
-- سؤال عن المكونات: "**التشيزكيك** عنا طبقة بسكويت زبدية مع كريمة الجبن الغنية!"
-- سؤال عن الحجم: "**الآيسد أمريكانو** يجي بالكوب الكبير، بيكفيك!"
+1. أجب عن السؤال بوضوح
+2. اذكر التفاصيل المطلوبة
+3. لا تقترح عناصر أخرى
+4. كن ودود ومختصر
 
 رد بـ JSON فقط:
 {
-  "reply": "إجابة مباشرة عن السؤال",
+  "reply": "الإجابة",
   "itemInfo": {
-    "found": true/false,
-    "name": "اسم العنصر",
-    "price": "السعر",
-    "details": "التفاصيل المطلوبة"
+    "found": true,
+    "name": "${itemDetails.arName}",
+    "price": "${itemDetails.price}",
+    "details": "التفاصيل"
   },
   "suggestions": []
 }`;
@@ -346,44 +472,34 @@ ${itemDetails ? `
     return parseJsonResponse(response);
   } catch (error) {
     console.error('Item followup error:', error);
-    return null;
+    return {
+      reply: `**${itemDetails.arName}** ${itemDetails.price ? `بـ ${itemDetails.price} ل.س` : ''} ${itemDetails.desc || ''}`,
+      itemInfo: {
+        found: true,
+        name: itemDetails.arName,
+        price: itemDetails.price,
+        details: itemDetails.desc
+      },
+      suggestions: []
+    };
   }
 }
 
 // STAGE 2C: Generate Chat Response
 async function generateChatResponse(context, apiKey) {
-  const prompt = `أنت "ماستر" - شخصية ودودة من مقهى بوظة ماستر كيك.
-
-**المهمة:** دردشة طبيعية وودية بدون أي ذكر للطعام أو الشراب أو القائمة.
+  const prompt = `أنت "ماستر" - شخصية ودودة من مقهى.
 
 **رسالة المستخدم:** "${context.lastUserMessage}"
-**السياق:** 
-${context.conversationFlow.slice(-3).map(m => `${m.role}: ${m.content}`).join('\n')}
 
-**قواعد صارمة:**
-1. ممنوع تماماً ذكر أي طعام أو شراب أو قائمة أو أسعار
-2. ممنوع السؤال "تحب تطلب شي؟" أو أي اقتراح مشابه
-3. ركز على المحادثة العامة فقط
-4. كن ودود ومتفهم
-5. استخدم اللهجة السورية الطبيعية
-6. رد قصير ومناسب (1-3 جمل)
-
-**مواضيع مناسبة:**
-- الطقس العام (بدون ربطه بالمشروبات)
-- الأحوال الشخصية
-- الهوايات والاهتمامات
-- الأخبار العامة
-- النصائح الحياتية
-
-**أمثلة ردود صحيحة:**
-- "الله يعطيك العافية! اليوم الجمعة، يوم راحة وبركة"
-- "معك حق، الحياة صارت صعبة بس المهم نضل متفائلين"
-- "يا هلا فيك! شو أخبارك اليوم؟ ان شاء الله تمام"
+**قواعد:**
+1. دردشة عادية بدون ذكر أي طعام أو شراب
+2. لا تسأل "تحب تطلب شي؟"
+3. كن ودود وطبيعي
+4. رد قصير (1-2 جملة)
 
 رد بـ JSON فقط:
 {
-  "reply": "رد دردشة طبيعي بدون أي ذكر للطعام",
-  "topicType": "weather|personal|general|advice",
+  "reply": "رد الدردشة",
   "suggestions": []
 }`;
 
@@ -391,45 +507,27 @@ ${context.conversationFlow.slice(-3).map(m => `${m.role}: ${m.content}`).join('\
     const response = await callGemini(apiKey, prompt);
     return parseJsonResponse(response);
   } catch (error) {
-    console.error('Chat response error:', error);
-    return null;
+    return {
+      reply: 'يا هلا فيك! شو أخبارك؟',
+      suggestions: []
+    };
   }
 }
 
-// Helper: Get mood-based category suggestions
+// Helper: Get mood-based categories
 function getMoodBasedCategories(mood) {
   const moodMap = {
-    'hot': ['cold_drinks', 'ice_cream'],
-    'cold': ['hot_drinks', 'sweets'],
-    'tired': ['hot_drinks', 'sweets'],
-    'energetic': ['cold_drinks', 'argillies'],
-    'happy': ['sweets', 'ice_cream'],
-    'sad': ['sweets', 'hot_drinks'],
+    'wanting_cold': ['cold_drinks', 'ice_cream'],
+    'wanting_hot': ['hot_drinks'],
     'hungry': ['sweets', 'ice_cream'],
     'thirsty': ['cold_drinks', 'hot_drinks'],
-    'relaxed': ['argillies', 'hot_drinks'],
+    'tired': ['hot_drinks', 'sweets'],
+    'happy': ['sweets', 'ice_cream'],
+    'sad': ['sweets', 'hot_drinks'],
     'stressed': ['argillies', 'sweets'],
-    'neutral': ['hot_drinks', 'cold_drinks', 'sweets']
+    'neutral': ['hot_drinks', 'cold_drinks', 'sweets', 'ice_cream']
   };
   return moodMap[mood] || moodMap['neutral'];
-}
-
-// Helper: Get mood description in Arabic
-function getMoodDescription(mood) {
-  const descriptions = {
-    'hot': 'حران ويحتاج شيء منعش',
-    'cold': 'بردان ويحتاج شيء دافي',
-    'tired': 'تعبان ويحتاج شيء ينشطه',
-    'energetic': 'نشيط ومليان طاقة',
-    'happy': 'مبسوط وفرحان',
-    'sad': 'حزين شوي',
-    'hungry': 'جوعان',
-    'thirsty': 'عطشان',
-    'relaxed': 'مرتاح وهادي',
-    'stressed': 'متوتر شوي',
-    'neutral': 'بمزاج عادي'
-  };
-  return descriptions[mood] || descriptions['neutral'];
 }
 
 // Helper: Call Gemini API
@@ -441,7 +539,7 @@ async function callGemini(apiKey, prompt) {
     body: JSON.stringify({ 
       contents: [{ role: 'user', parts: [{ text: prompt }] }], 
       generationConfig: { 
-        temperature: 0.7, 
+        temperature: 0.6,  // Lower for more consistency
         maxOutputTokens: 800
       } 
     })
@@ -469,35 +567,53 @@ function parseJsonResponse(rawText) {
 }
 
 // Helper: Validate and format final response
-function formatFinalResponse(response, digest, intent) {
+function formatFinalResponse(response, digest, intentResult) {
   if (!response) {
+    // Generate fallback based on intent
+    if (intentResult.intent === 'MENU_INTENT') {
+      const items = digest.allItems.slice(0, 2);
+      return {
+        reply: 'أهلين! شو حابب من عندنا اليوم؟',
+        suggestions: items.map(item => ({
+          id: item.id,
+          category: item.category,
+          arName: item.arName,
+          enName: item.enName,
+          price: item.price || 'السعر غير محدد',
+          description: item.desc,
+          badge: item.badge || '',
+          images: item.images || []
+        }))
+      };
+    }
     return {
-      reply: 'عذراً، في مشكلة تقنية. جرب مرة تانية.',
+      reply: 'عذراً، في مشكلة. جرب مرة تانية.',
       suggestions: []
     };
   }
   
-  // Validate suggestions if present
+  // Validate and enrich suggestions
   const validSuggestions = [];
   if (Array.isArray(response.suggestions)) {
-    response.suggestions.slice(0, 2).forEach(suggestion => {
-      // Find the item in the digest
-      for (const [category, section] of Object.entries(digest.sections)) {
-        const item = section.items.find(it => it.id === suggestion.id);
-        if (item) {
-          validSuggestions.push({
-            id: item.id,
-            category: category,
-            arName: item.arName,
-            enName: item.enName,
-            price: item.price || 'السعر غير محدد',
-            description: item.desc,
-            badge: item.badge || '',
-            images: item.images || [],
-            reason: suggestion.reason || ''
-          });
-          break;
-        }
+    response.suggestions.forEach(suggestion => {
+      // Find in digest
+      const found = digest.allItems.find(item => 
+        item.id === suggestion.id || 
+        item.arName === suggestion.arName
+      );
+      
+      if (found) {
+        validSuggestions.push({
+          id: found.id,
+          category: found.category,
+          arName: found.arName,
+          enName: found.enName,
+          price: found.price || suggestion.price || 'السعر غير محدد',
+          description: found.desc,
+          badge: found.badge || '',
+          images: found.images || [],
+          reason: suggestion.reason || ''
+        });
       }
     });
   }
@@ -506,9 +622,9 @@ function formatFinalResponse(response, digest, intent) {
     reply: String(response.reply || 'أهلين! كيف بقدر ساعدك؟').slice(0, 500),
     suggestions: validSuggestions,
     metadata: {
-      intent: intent,
-      moodResponse: response.moodResponse || false,
-      topicType: response.topicType || null,
+      intent: intentResult.intent,
+      mood: intentResult.mood,
+      temperaturePreference: intentResult.temperaturePreference,
       itemInfo: response.itemInfo || null
     }
   };
@@ -549,65 +665,86 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Step 1: Extract comprehensive context
-    const context = extractFullContext(messages, sessionId);
-    console.log('Context extracted:', {
-      lastMessage: context.lastUserMessage,
-      suggestedItems: context.suggestedItems,
-      discussedItems: context.discussedItems
-    });
-    
-    // Step 2: AI Intent and Mood Detection
-    const intentResult = await detectIntentAndMood(context, apiKey);
-    console.log('Intent Detection Result:', intentResult);
-    
-    // Step 3: Load menu digest
+    // Step 1: Load menu first
     const menuDigest = await buildMenuDigest();
     
-    // Step 4: Generate response based on intent
+    // Step 2: Extract context
+    const context = extractFullContext(messages, sessionId);
+    
+    console.log('Context:', {
+      lastMessage: context.lastUserMessage,
+      temperaturePreference: context.temperaturePreference,
+      suggestedItems: context.suggestedItems
+    });
+    
+    // Step 3: Detect intent and mood with menu awareness
+    const intentResult = await detectIntentAndMood(context, menuDigest, apiKey);
+    
+    console.log('Intent Result:', {
+      intent: intentResult.intent,
+      mood: intentResult.mood,
+      temperature: intentResult.temperaturePreference,
+      item: intentResult.specificItem
+    });
+    
+    // Step 4: Generate appropriate response
     let response = null;
     
     switch (intentResult.intent) {
       case 'MENU_INTENT':
-        // Generate menu suggestions based on mood
         response = await generateMenuResponse(
           context, 
           menuDigest, 
-          intentResult.mood, 
+          intentResult,
           apiKey
         );
         break;
         
       case 'ITEM_FOLLOWUP_INTENT':
-        // Answer specific questions about items
         response = await generateItemFollowupResponse(
           context,
           menuDigest,
           intentResult.specificItem,
           apiKey
         );
+        
+        // If item not found, switch to menu intent
+        if (!response) {
+          response = await generateMenuResponse(
+            context, 
+            menuDigest, 
+            intentResult,
+            apiKey
+          );
+        }
         break;
         
       case 'CHAT_INTENT':
       default:
-        // Normal chat without menu mentions
         response = await generateChatResponse(context, apiKey);
         break;
     }
     
-    // Step 5: Format and validate response
-    const finalResponse = formatFinalResponse(response, menuDigest, intentResult.intent);
+    // Step 5: Format final response
+    const finalResponse = formatFinalResponse(response, menuDigest, intentResult);
     
-    // Add intent and mood to response for debugging
-    finalResponse.debug = {
-      detectedIntent: intentResult.intent,
-      confidence: intentResult.confidence,
-      mood: intentResult.mood,
-      moodConfidence: intentResult.moodConfidence,
-      reasoning: intentResult.reasoning
-    };
+    // Add debug info
+    if (process.env.NODE_ENV === 'development') {
+      finalResponse.debug = {
+        detectedIntent: intentResult.intent,
+        confidence: intentResult.confidence,
+        mood: intentResult.mood,
+        temperaturePreference: intentResult.temperaturePreference,
+        specificItem: intentResult.specificItem,
+        reasoning: intentResult.reasoning
+      };
+    }
     
-    console.log('Final Response:', finalResponse);
+    console.log('Final Response:', {
+      reply: finalResponse.reply.slice(0, 100),
+      suggestions: finalResponse.suggestions.length
+    });
+    
     res.status(200).json(finalResponse);
     
   } catch (error) {
