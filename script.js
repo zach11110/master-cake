@@ -313,13 +313,13 @@ document.addEventListener('DOMContentLoaded', () => {
         pushMsg('assistant', 'صار عندي ضغط هلق، جرب بعد شوي 🙏');
       }
     };
-    // first-time hint bubble
-    const hint = document.createElement('div');
-    hint.className = 'chat-hint';
-    hint.textContent = 'أنا ماستر، النادل الذكي تبعنا. خبرني بمزاجك وبقترح لك شي طيب ✨';
-    document.body.appendChild(hint);
-    setTimeout(()=> hint.classList.add('show'), 800);
-    setTimeout(()=> hint.classList.remove('show'), 7000);
+    // first-time hint bubble - temporarily disabled
+    // const hint = document.createElement('div');
+    // hint.className = 'chat-hint';
+    // hint.textContent = 'أنا ماستر، النادل الذكي تبعنا. خبرني بمزاجك وبقترح لك شي طيب ✨';
+    // document.body.appendChild(hint);
+    // setTimeout(()=> hint.classList.add('show'), 800);
+    // setTimeout(()=> hint.classList.remove('show'), 7000);
 
     chatFab.addEventListener('click', () => { chatPanel.classList.add('show'); if (!history.length) pushMsg('assistant', 'أهلا فيك! أنا ماستر النادل الذكي. خبرني بمزاجك واليوم شو حابب، وبقترح لك خيارات مناسبة 😋'); });
     chatClose.addEventListener('click', () => { chatPanel.classList.remove('show'); });
