@@ -105,6 +105,11 @@
       "ar": "كريب",
       "en": "Crepe",
       "items": []
+    },
+    "PanCake": {
+      "ar": "بانكيك",
+      "en": "PanCake",
+      "items": []
     }
   }
 }
