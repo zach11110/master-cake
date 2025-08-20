@@ -115,6 +115,11 @@
       "ar": "وافل",
       "en": "Waffle",
       "items": []
+    },
+    "Cake": {
+      "ar": "كيك",
+      "en": "Cake",
+      "items": []
     }
   }
 }
