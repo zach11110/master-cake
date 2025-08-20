@@ -110,6 +110,11 @@
       "ar": "بانكيك",
       "en": "PanCake",
       "items": []
+    },
+    "Waffle": {
+      "ar": "وافل",
+      "en": "Waffle",
+      "items": []
     }
   }
 }
