@@ -159,6 +159,15 @@
           "descriptionEn": "A delicate crepe filled with a smooth, creamy lotus spread.  Enjoy warm.",
           "price": "20,000",
           "hidden": false
+        },
+        {
+          "id": "بقجة كريب",
+          "arName": "بقجة كريب",
+          "enName": "Crepe Pouch",
+          "descriptionAr": "كريب شوكولا محشي كريمة تشيز مع اللبراونيز والفوكه الموسمية مغطس بالشوكولا البلجيكية",
+          "descriptionEn": "Chocolate crepe filled with cream cheese with brownies and seasonal fruits dipped in Belgian chocolate.",
+          "price": "40,000",
+          "hidden": false
         }
       ]
     },
