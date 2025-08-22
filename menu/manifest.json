@@ -134,7 +134,10 @@
           "descriptionAr": "اثنا عشر قطعة من الكريب المحشي مارشميلو وبراونيز والفواكه الموسمية",
           "descriptionEn": "Twelve pieces of stuffed crepes with marshmallows, brownies, and seasonal fruits.",
           "price": "33,000",
-          "hidden": false
+          "hidden": false,
+          "images": [
+            "img-1755881431563-1.jpg"
+          ]
         },
         {
           "id": "آيس بئجة كريب",
