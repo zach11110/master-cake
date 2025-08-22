@@ -123,6 +123,15 @@
           "descriptionEn": "Flat fettuccine pasta folded into a warm, thin crepe.  Savory and satisfying.",
           "price": "40,000",
           "hidden": false
+        },
+        {
+          "id": "سوشي كريب",
+          "arName": "سوشي كريب",
+          "enName": "Sushi Crepe",
+          "descriptionAr": "كريب لذيذ محشو بأرز السوشي، الأفوكادو، واختيارك من البروتين. مزيج رائع من القوام ودرجات الحرارة.",
+          "descriptionEn": "Savory crepe filled with sushi rice, avocado, and your choice of protein.  A delightful blend of textures and temperatures.",
+          "price": "30,000",
+          "hidden": false
         }
       ]
     },
