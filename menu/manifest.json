@@ -114,6 +114,15 @@
           "descriptionEn": "A warm, thin crepe filled with rich, melted chocolate.  Enjoy its delicate texture and sweet flavor.",
           "price": "20,000",
           "hidden": false
+        },
+        {
+          "id": "فيتوتشيني كريب",
+          "arName": "فيتوتشيني كريب",
+          "enName": "Fettuccine Crepe",
+          "descriptionAr": "معكرونة فيتوتشيني مسطحة مطوية في كريب دافئ ورقيق. لذيذة وشهية.",
+          "descriptionEn": "Flat fettuccine pasta folded into a warm, thin crepe.  Savory and satisfying.",
+          "price": "40,000",
+          "hidden": false
         }
       ]
     },
