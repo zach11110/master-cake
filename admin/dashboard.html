@@ -644,6 +644,7 @@
           <p class="card-description">Select a section to view and manage items</p>
         </div>
         <div class="card-content">
+
           <div class="section-selector" id="sectionSelector">
             <!-- Sections will be dynamically loaded here -->
           </div>
@@ -754,13 +755,9 @@
         <div class="card-content">
           <div class="form-group">
             <label>Target Section</label>
-            <select id="uploadSection">
-              <option value="cold_drinks">Cold Drinks</option>
-              <option value="hot_drinks">Hot Drinks</option>
-              <option value="sweets">Sweets</option>
-              <option value="argillies">Argillies</option>
-              <option value="ice_cream">Ice Cream</option>
-            </select>
+                         <select id="uploadSection">
+               <!-- Sections will be dynamically loaded here -->
+             </select>
           </div>
 
           <div class="upload-zone" id="uploadZone">
@@ -853,9 +850,6 @@
       document.querySelectorAll('.nav-tab').forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
       });
-
-      // Section selector - will be set up after sections are rendered
-    }
 
       // Upload zone
       const uploadZone = document.getElementById('uploadZone');
@@ -1025,6 +1019,16 @@
       if (formSection) {
         formSection.innerHTML = sectionKeys.map(key => `
           <option value="${key}" ${key === currentSection ? 'selected' : ''}>
+            ${sections[key].en || sections[key].ar || key}
+          </option>
+        `).join('');
+      }
+      
+      // Render upload section dropdown
+      const uploadSection = document.getElementById('uploadSection');
+      if (uploadSection) {
+        uploadSection.innerHTML = sectionKeys.map(key => `
+          <option value="${key}">
             ${sections[key].en || sections[key].ar || key}
           </option>
         `).join('');
