@@ -56,31 +56,6 @@
         }
       ]
     },
-    "sweets": {
-      "ar": "حلويات",
-      "en": "Sweets",
-      "items": [
-        {
-          "id": "cheesecake",
-          "arName": "تشيزكيك",
-          "enName": "Cheesecake",
-          "descriptionAr": "طبقة بسكويت زبدية وكريمة جبن.",
-          "descriptionEn": "Buttery biscuit crust with cream cheese.",
-          "images": []
-        },
-        {
-          "id": "Chocolate_Crepe",
-          "arName": "كريب الشوكولا",
-          "enName": "Chocolate Crepe",
-          "descriptionAr": "كريب دافئ رقيق محشو بشوكولاتة غنية ذائبة. استمتع بقوامه الناعم ونكهة الشوكولاتة الحلوة.",
-          "descriptionEn": "A warm, thin crepe filled with rich, melted chocolate.  Enjoy its delicate texture and sweet chocolate flavor.",
-          "images": [
-            "crepe.jpg"
-          ],
-          "price": "15000"
-        }
-      ]
-    },
     "ice_cream": {
       "ar": "بوظة / آيس كريم",
       "en": "Ice Cream",
@@ -125,6 +100,26 @@
           "badge": "جديد"
         }
       ]
+    },
+    "Crepe": {
+      "ar": "كريب",
+      "en": "Crepe",
+      "items": []
+    },
+    "PanCake": {
+      "ar": "بانكيك",
+      "en": "PanCake",
+      "items": []
+    },
+    "Waffle": {
+      "ar": "وافل",
+      "en": "Waffle",
+      "items": []
+    },
+    "Cake": {
+      "ar": "كيك",
+      "en": "Cake",
+      "items": []
     }
   }
 }
