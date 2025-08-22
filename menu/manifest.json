@@ -132,6 +132,15 @@
           "descriptionEn": "Savory crepe filled with sushi rice, avocado, and your choice of protein.  A delightful blend of textures and temperatures.",
           "price": "30,000",
           "hidden": false
+        },
+        {
+          "id": "آيس بئجة كريب",
+          "arName": "آيس بقجة كريب",
+          "enName": "Ice Cream Crepe",
+          "descriptionAr": "كريب رقيق دافئ محشوّ بنوعك المفضل من الآيس كريم. استمتع بالتناقض اللذيذ في القوام ودرجات الحرارة.",
+          "descriptionEn": "A warm, thin crepe filled with your choice of ice cream.  Enjoy the delightful contrast of textures and temperatures.",
+          "price": "22,000",
+          "hidden": false
         }
       ]
     },
