@@ -105,7 +105,17 @@
     "Crepe": {
       "ar": "كريب",
       "en": "Crepe",
-      "items": []
+      "items": [
+        {
+          "id": "كريب شوكولا",
+          "arName": "كريب شوكولا",
+          "enName": "Chocolate Crepe",
+          "descriptionAr": "كريب دافئ رقيق محشو بشوكولاتة غنية مذابة. استمتع بقوامه الناعم ونكهته الحلوة.",
+          "descriptionEn": "A warm, thin crepe filled with rich, melted chocolate.  Enjoy its delicate texture and sweet flavor.",
+          "price": "20,000",
+          "hidden": false
+        }
+      ]
     },
     "PanCake": {
       "ar": "بانكيك",
