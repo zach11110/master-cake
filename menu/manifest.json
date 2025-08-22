@@ -22,7 +22,8 @@
           "price": "25000",
           "badge": "جديد"
         }
-      ]
+      ],
+      "hidden": true
     },
     "hot_drinks": {
       "ar": "مشروبات ساخنة",
