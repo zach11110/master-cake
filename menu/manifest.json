@@ -150,6 +150,15 @@
           "descriptionEn": "Crepe rolled and stuffed with cream cheese, brownie, éclair, seasonal fruits, and coated with Belgian chocolate.",
           "price": "40,000",
           "hidden": false
+        },
+        {
+          "id": "لوتس كريب",
+          "arName": "كريب لوتس",
+          "enName": "Lotus Crepe",
+          "descriptionAr": "كريب رقيق محشو بمركب لوتس ناعم وكريمي. استمتع به دافئًا.",
+          "descriptionEn": "A delicate crepe filled with a smooth, creamy lotus spread.  Enjoy warm.",
+          "price": "20,000",
+          "hidden": false
         }
       ]
     },
