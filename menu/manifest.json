@@ -141,6 +141,15 @@
           "descriptionEn": "A warm, thin crepe filled with your choice of ice cream.  Enjoy the delightful contrast of textures and temperatures.",
           "price": "22,000",
           "hidden": false
+        },
+        {
+          "id": "ماستر كيك رول",
+          "arName": "ماستر كيك رول",
+          "enName": "Master Cake Roll",
+          "descriptionAr": "كريب ملفوف على شكل رول محشي بكريمة التشيز مع الراونيز والكلير والفواكه الموسمية ومغطس بالشوكولا البلجيكية",
+          "descriptionEn": "Crepe rolled and stuffed with cream cheese, brownie, éclair, seasonal fruits, and coated with Belgian chocolate.",
+          "price": "40,000",
+          "hidden": false
         }
       ]
     },
