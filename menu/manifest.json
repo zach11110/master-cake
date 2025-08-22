@@ -123,7 +123,10 @@
           "descriptionEn": "Warm, crispy waffle generously spread with Nutella hazelnut spread. A delightful combination of textures and flavors.",
           "price": "15000",
           "badge": "جديد",
-          "hidden": false
+          "hidden": false,
+          "images": [
+            "nutella-waffle-1755845167416-1.jpg"
+          ]
         }
       ]
     },
