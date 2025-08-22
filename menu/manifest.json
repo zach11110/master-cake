@@ -23,7 +23,7 @@
           "badge": "جديد"
         }
       ],
-      "hidden": true
+      "hidden": false
     },
     "hot_drinks": {
       "ar": "مشروبات ساخنة",
