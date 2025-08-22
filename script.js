@@ -11,7 +11,7 @@ const BRAND_FALLBACK = {
       ice_cream: 'بوظة / آيس كريم'
     },
     demo: 'صنف تجريبي',
-    note: 'عينات عرض فقط — استبدل بمحتوى حقيقي'
+    note: ''
   },
   en: {
     name: 'Master Cake',
@@ -24,7 +24,7 @@ const BRAND_FALLBACK = {
       ice_cream: 'Ice Cream'
     },
     demo: 'Demo Item',
-    note: 'Demo only — replace with your real items'
+    note: ''
   }
 };
 
@@ -93,17 +93,21 @@ function getBrand(t, lang) {
   if (keys.length) {
     keys.forEach((key) => {
       const sec = t.sections[key] || {};
+      // Skip hidden sections
+      if (sec.hidden) return;
       sectionsObj[key] = lang === 'ar' ? (sec.ar || key) : (sec.en || key);
     });
   } else {
     // fallback if manifest has no sections
     DEFAULT_SECTION_ORDER.forEach((key) => {
       const sec = t.sections?.[key];
-      sectionsObj[key] = lang === 'ar' ? (sec?.ar || BRAND_FALLBACK.ar.sections[key]) : (sec?.en || BRAND_FALLBACK.en.sections[key]);
+      // Skip hidden sections
+      if (sec?.hidden) return;
+      sectionsObj[key] = lang === 'ar' ? (sec?.ar || BRAND_FALLBACK.ar.sections[key]) : (sec?.en || BRAND_FALLBACK.ar.sections[key]);
     });
   }
   return {
-    name: lang === 'ar' ? (t.brand?.arName || BRAND_FALLBACK.ar.name) : (t.brand?.enName || BRAND_FALLBACK.en.name),
+    name: lang === 'ar' ? (t.brand?.enName || BRAND_FALLBACK.ar.name) : (t.brand?.enName || BRAND_FALLBACK.en.name),
     tag: lang === 'ar' ? (t.brand?.tagAr || BRAND_FALLBACK.ar.tag) : (t.brand?.tagEn || BRAND_FALLBACK.en.tag),
     sections: sectionsObj,
   };
@@ -124,7 +128,9 @@ function buildItemsForSection(manifest, sectionKey, lang) {
   }
   const sec = manifest.sections?.[sectionKey];
   if (!sec) return [];
-  return sec.items || [];
+  // Filter out hidden items
+  const items = sec.items || [];
+  return items.filter(item => !item.hidden);
 }
 
 async function renderUI(lang) {

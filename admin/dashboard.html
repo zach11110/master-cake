@@ -498,6 +498,59 @@
       }
     }
 
+    /* Hidden Items and Sections Styling */
+    .item-hidden {
+      opacity: 0.6;
+      background: rgba(107, 114, 128, 0.05);
+      border: 1px dashed var(--border);
+    }
+
+    .item-hidden .item-header {
+      background: rgba(107, 114, 128, 0.1);
+    }
+
+    .badge-warning {
+      background: #f59e0b;
+      color: white;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .item-actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+    }
+
+    .btn-warning {
+      background: #f59e0b;
+      color: white;
+      border: 1px solid #d97706;
+    }
+
+    .btn-warning:hover {
+      background: #d97706;
+    }
+
+    .btn-success {
+      background: #10b981;
+      color: white;
+      border: 1px solid #059669;
+    }
+
+    .btn-success:hover {
+      background: #059669;
+    }
+
     @media (min-width: 1024px) {
       .header-content {
         padding: var(--spacing-lg) var(--spacing-xl);
@@ -626,6 +679,12 @@
               <input id="secAr" placeholder="العنوان بالعربية" />
               <label>English Label</label>
               <input id="secEn" placeholder="Title in English" />
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="secHidden" />
+                  Hide this section from menu (out of stock)
+                </label>
+              </div>
               <div class="btn-group" style="margin-top:8px">
                 <button id="btnAddSection" class="btn btn-primary">➕ Add / Update</button>
                 <button id="btnDeleteSection" class="btn btn-outline">🗑️ Delete</button>
@@ -721,6 +780,13 @@
               <label>Badge (Optional)</label>
               <input id="formBadge" placeholder="e.g. NEW, ★" />
             </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="formHidden" />
+              Hide this item from menu (out of stock)
+            </label>
           </div>
 
           <div class="form-group">
@@ -946,19 +1012,31 @@
       container.classList.remove('hidden');
       emptyState.classList.add('hidden');
 
-      container.innerHTML = items.map(item => `
-        <div class="item-card" data-id="${item.id}">
-          <div class="item-header">
-            <div class="item-id">${item.id}</div>
-            ${item.price ? `<div class="item-price">$${item.price}</div>` : ''}
+      container.innerHTML = items.map(item => {
+        const isHidden = item.hidden;
+        return `
+          <div class="item-card ${isHidden ? 'item-hidden' : ''}" data-id="${item.id}">
+            <div class="item-header">
+              <div class="item-id">
+                ${item.id}
+                ${isHidden ? '<span class="badge badge-warning">HIDDEN</span>' : ''}
+              </div>
+              ${item.price ? `<div class="item-price">$${item.price}</div>` : ''}
+            </div>
+            <div class="item-names">
+              ${item.arName ? `<div class="item-name ar">${item.arName}</div>` : ''}
+              ${item.enName ? `<div class="item-name">${item.enName}</div>` : ''}
+            </div>
+            ${item.images?.length ? `<div class="item-images">📷 ${item.images.join(', ')}</div>` : ''}
+            <div class="item-actions">
+              <button class="btn btn-sm ${isHidden ? 'btn-success' : 'btn-warning'}" 
+                      onclick="toggleItemVisibility('${item.id}', ${!isHidden})">
+                ${isHidden ? '👁️ Show' : '🙈 Hide'}
+              </button>
+            </div>
           </div>
-          <div class="item-names">
-            ${item.arName ? `<div class="item-name ar">${item.arName}</div>` : ''}
-            ${item.enName ? `<div class="item-name">${item.enName}</div>` : ''}
-          </div>
-          ${item.images?.length ? `<div class="item-images">📷 ${item.images.join(', ')}</div>` : ''}
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       // Add click handlers
       container.querySelectorAll('.item-card').forEach(card => {
@@ -974,13 +1052,25 @@
       const box = document.getElementById('sectionsList');
       if (!box) return;
       const secs = currentManifest.sections || {};
-      box.innerHTML = Object.entries(secs).map(([key, val]) => `
-        <div class="form-row" style="align-items:center">
-          <div style=\"min-width:180px\"><b>${key}</b></div>
-          <div>${val.ar || ''}</div>
-          <div class=\"muted\">${val.en || ''}</div>
-        </div>
-      `).join('');
+      box.innerHTML = Object.entries(secs).map(([key, val]) => {
+        const isHidden = val.hidden;
+        return `
+          <div class="form-row" style="align-items:center">
+            <div style="min-width:180px">
+              <b>${key}</b>
+              ${isHidden ? '<span class="badge badge-warning">HIDDEN</span>' : ''}
+            </div>
+            <div>${val.ar || ''}</div>
+            <div class="muted">${val.en || ''}</div>
+            <div>
+              <button class="btn btn-sm ${isHidden ? 'btn-success' : 'btn-warning'}" 
+                      onclick="toggleSectionVisibility('${key}', ${!isHidden})">
+                ${isHidden ? '👁️ Show' : '🙈 Hide'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function renderSectionSelectors() {
@@ -1039,9 +1129,10 @@
       const key = document.getElementById('secKey').value.trim();
       const ar = document.getElementById('secAr').value.trim();
       const en = document.getElementById('secEn').value.trim();
+      const hidden = document.getElementById('secHidden').checked;
       if (!key) { showMessage('secMsg','❌ Enter section key','error'); return; }
       try{
-        await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ newSection: key, sectionLabelAr: ar, sectionLabelEn: en }) });
+        await api('/api/admin/save-item', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ newSection: key, sectionLabelAr: ar, sectionLabelEn: en, hidden }) });
         currentManifest = await api('/api/admin/manifest');
         renderSectionsList();
         renderSectionSelectors();
@@ -1099,6 +1190,7 @@
           descriptionEn: document.getElementById('formDescEn').value.trim(),
           price: document.getElementById('formPrice').value.trim(),
           badge: document.getElementById('formBadge').value.trim(),
+          hidden: document.getElementById('formHidden').checked,
           images: document.getElementById('formImages').value
             .split(',')
             .map(s => s.trim())
@@ -1259,6 +1351,7 @@
       document.getElementById('formDescEn').value = item.descriptionEn || '';
       document.getElementById('formPrice').value = item.price || '';
       document.getElementById('formBadge').value = item.badge || '';
+      document.getElementById('formHidden').checked = item.hidden || false;
       document.getElementById('formImages').value = (item.images || []).join(', ');
 
       showMessage('saveMsg', '✅ Item loaded for editing', 'success');
@@ -1304,6 +1397,80 @@
       } catch (error) {
         console.error('Logout failed:', error);
         location.href = '/admin/';
+      }
+    }
+
+    // Toggle item visibility (hide/show)
+    async function toggleItemVisibility(itemId, hide) {
+      try {
+        const items = currentManifest.sections?.[currentSection]?.items || [];
+        const item = items.find(i => i.id === itemId);
+        
+        if (!item) {
+          showMessage('tableMsg', '❌ Item not found', 'error');
+          return;
+        }
+
+        // Update the item's hidden status
+        item.hidden = hide;
+        
+        // Save the updated item
+        await api('/api/admin/save-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            section: currentSection, 
+            item: { ...item, hidden: hide }
+          })
+        });
+
+        // Refresh data
+        currentManifest = await api('/api/admin/manifest');
+        renderItems();
+        
+        const action = hide ? 'hidden' : 'shown';
+        showMessage('tableMsg', `✅ Item ${action} successfully`, 'success');
+
+      } catch (error) {
+        showMessage('tableMsg', `❌ Failed to toggle visibility: ${error.message}`, 'error');
+      }
+    }
+
+    // Toggle section visibility (hide/show)
+    async function toggleSectionVisibility(sectionKey, hide) {
+      try {
+        const section = currentManifest.sections?.[sectionKey];
+        
+        if (!section) {
+          showMessage('secMsg', '❌ Section not found', 'error');
+          return;
+        }
+
+        // Update the section's hidden status
+        section.hidden = hide;
+        
+        // Save the updated section
+        await api('/api/admin/save-item', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            newSection: sectionKey, 
+            sectionLabelAr: section.ar || '', 
+            sectionLabelEn: section.en || '',
+            hidden: hide
+          })
+        });
+
+        // Refresh data
+        currentManifest = await api('/api/admin/manifest');
+        renderSectionsList();
+        renderSectionSelectors();
+        
+        const action = hide ? 'hidden' : 'shown';
+        showMessage('secMsg', `✅ Section ${action} successfully`, 'success');
+
+      } catch (error) {
+        showMessage('secMsg', `❌ Failed to toggle visibility: ${error.message}`, 'error');
       }
     }
 

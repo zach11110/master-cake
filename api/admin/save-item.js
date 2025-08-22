@@ -39,11 +39,12 @@ export default async function handler(req, res) {
     if (newSection) {
       const key = newSection.trim();
       if (!json.sections[key]) {
-        json.sections[key] = { ar: sectionLabelAr || key, en: sectionLabelEn || key, items: [] };
+        json.sections[key] = { ar: sectionLabelAr || key, en: sectionLabelEn || key, items: [], hidden: req.body.hidden || false };
       } else {
         // update labels if provided
         if (sectionLabelAr) json.sections[key].ar = sectionLabelAr;
         if (sectionLabelEn) json.sections[key].en = sectionLabelEn;
+        if (req.body.hidden !== undefined) json.sections[key].hidden = req.body.hidden;
       }
     }
 
@@ -62,7 +63,7 @@ export default async function handler(req, res) {
 
     const items = (json.sections[section] ||= { items: [], ar: '', en: '' }).items || [];
     const sanitize = (obj) => {
-      const allowedKeys = ['arName','enName','descriptionAr','descriptionEn','images','price','badge'];
+      const allowedKeys = ['arName','enName','descriptionAr','descriptionEn','images','price','badge','hidden'];
       const out = { id: obj.id };
       for (const k of allowedKeys) {
         if (!(k in obj)) continue;
