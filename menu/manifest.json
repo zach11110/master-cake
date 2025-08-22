@@ -122,7 +122,8 @@
           "descriptionAr": "وافل دافئ مقرمش، مغطى بكمية سخية من نوتيلا البندق. مزيجٌ رائعٌ من القوام والنكهات.",
           "descriptionEn": "Warm, crispy waffle generously spread with Nutella hazelnut spread. A delightful combination of textures and flavors.",
           "price": "15000",
-          "badge": "جديد"
+          "badge": "جديد",
+          "hidden": true
         }
       ]
     },
